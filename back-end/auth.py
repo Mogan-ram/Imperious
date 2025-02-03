@@ -11,7 +11,13 @@ SECRET_KEY = os.urandom(24).hex()
 def create_user(data):
     hashed_pwd = bcrypt.hashpw(data["password"].encode("utf-8"), bcrypt.gensalt())
     user = User(
-        email=data["email"], password=hashed_pwd, role=data.get("role", "student")
+        name=data["name"],
+        dept=data["dept"],
+        role=data.get("role", "student"),
+        regno=data["regno"],
+        batch=data["batch"],
+        email=data["email"],
+        password=hashed_pwd,
     )
     user.save()
     return jsonify({"message": "User created successfully"}), 201

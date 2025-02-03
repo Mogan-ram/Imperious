@@ -22,7 +22,7 @@ const Signup = () => {
     const handleSignup = async () => {
         try {
             await axios.post('http://localhost:5000/signup', { name, dept, role, regno, batch, email, password });
-            navigate('/login');
+            navigate('/');
         } catch (error) {
             alert('Error creating the user');
         }
