@@ -2,18 +2,93 @@ import os
 import jwt
 import bcrypt
 from datetime import datetime, timedelta
-from flask import jsonify
+from flask import jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from models import User
 
 SECRET_KEY = os.urandom(24).hex()
 
 
+def init_auth_routes(app):
+    def get_profile_handler():
+        try:
+            current_user = get_jwt_identity()
+            user = User.find_by_email(current_user)
+
+            if not user:
+                return jsonify({"message": "User not found"}), 404
+
+            # Remove sensitive information and convert ObjectId to string
+            user_data = {
+                "email": user["email"],
+                "name": user["name"],
+                "role": user.get("role", "user"),
+                "dept": user.get("dept"),
+                "regno": user.get("regno"),
+                "batch": user.get("batch"),
+                "_id": str(user["_id"]),  # Convert ObjectId to string
+            }
+
+            return jsonify(user_data), 200
+
+        except Exception as e:
+            print(f"Error in profile route: {str(e)}")
+            return jsonify({"message": "Internal server error"}), 500
+
+    def login_user(data):
+        if not data or "email" not in data or "password" not in data:
+            return jsonify({"message": "Missing email or password"}), 400
+
+        try:
+            user = User.find_by_email(data["email"])
+            if not user:
+                return jsonify({"message": "User not found"}), 404
+
+            if not bcrypt.checkpw(data["password"].encode("utf-8"), user["password"]):
+                return jsonify({"message": "Invalid password"}), 401
+
+            # Create access token with email as identity
+            access_token = create_access_token(
+                identity=user["email"], expires_delta=timedelta(days=1)
+            )
+
+            return (
+                jsonify(
+                    {
+                        "token": access_token,
+                        "user": {
+                            "email": user["email"],
+                            "name": user["name"],
+                            "role": user.get("role", "user"),
+                        },
+                        "message": "Login successful",
+                    }
+                ),
+                200,
+            )
+
+        except Exception as e:
+            print(f"Login error: {str(e)}")
+            return jsonify({"message": f"Login error: {str(e)}"}), 500
+
+    # Return the functions
+    return {
+        "create_user": create_user,
+        "login_user": login_user,
+        "get_profile_handler": get_profile_handler,
+        "update_user_profile": update_user_profile,
+    }
+
+
 def create_user(data):
-    hashed_pwd = bcrypt.hashpw(data["password"].encode("utf-8"), bcrypt.gensalt())
+    # Hash password before saving
+    password = data["password"].encode("utf-8")
+    hashed_pwd = bcrypt.hashpw(password, bcrypt.gensalt())
+
     user = User(
         name=data["name"],
         dept=data["dept"],
-        role=data.get("role", "student"),
+        role=data.get("role", "student").lower(),  # Normalize role
         regno=data["regno"],
         batch=data["batch"],
         email=data["email"],
@@ -23,32 +98,25 @@ def create_user(data):
     return jsonify({"message": "User created successfully"}), 201
 
 
-def login_user(data):
-    user = User.find_by_email(data["email"])
-    if user and bcrypt.checkpw(data["password"].encode("utf-8"), user["password"]):
-        token = jwt.encode(
-            {
-                "email": user["email"],
-                "role": user["role"],
-                "exp": datetime.utcnow() + timedelta(hours=1),
-            },
-            SECRET_KEY,
-            algorithm="HS256",
-        )
-        return jsonify({"token": token}), 200
-    return jsonify({"message": "Invalid credentials"}), 401
-
-
 def get_user_profile(token):
-    if not token or not token.startswith("Bearer "):
-        return jsonify({"message": "Token is missing or invalid"}), 400
+    if not token:
+        return jsonify({"message": "Token is missing"}), 400
     try:
-        token = token.split(" ")[1]
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         user = User.find_by_email(payload["email"])
-        return jsonify({"email": user["email"], "role": user["role"]}), 200
-    except jwt.DecodeError:
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Remove sensitive information
+        user.pop("password", None)
+        return jsonify(user), 200
+    except jwt.ExpiredSignatureError:
+        return jsonify({"message": "Token has expired"}), 401
+    except jwt.InvalidTokenError:
         return jsonify({"message": "Invalid token"}), 401
+    except Exception as e:
+        print(f"Profile error: {str(e)}")  # Add server-side logging
+        return jsonify({"message": "Error processing request"}), 400
 
 
 def update_user_profile(token, data):

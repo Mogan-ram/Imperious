@@ -1,0 +1,119 @@
+.login-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background: linear-gradient(45deg,
+            rgba(156, 136, 255, 0.7) 0%,
+            rgba(169, 185, 255, 0.7) 25%,
+            rgba(144, 205, 244, 0.7) 50%,
+            rgba(156, 136, 255, 0.7) 75%,
+            rgba(191, 185, 255, 0.7) 100%);
+    animation: gradientBG 15s ease infinite;
+    background-size: 400% 400%;
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.login-background video {
+    display: none;
+}
+
+.login-container {
+    position: relative;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-radius: 16px !important;
+    padding: 2rem !important;
+    width: 100%;
+    max-width: 400px;
+
+    /* Enhanced Glassmorphism effect */
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.05) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Style for input fields while keeping Bootstrap's form-control */
+.login-container .form-control {
+    background: rgba(255, 255, 255, 0.07) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    padding: 0.75rem !important;
+    transition: all 0.3s ease !important;
+}
+
+.login-container .form-control:focus {
+    box-shadow: none !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.login-container .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Style for the submit button while keeping Bootstrap's btn class */
+.login-container .btn {
+    background: rgba(156, 136, 255, 0.8) !important;
+    border: none !important;
+    padding: 0.75rem !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+}
+
+.login-container .btn:hover {
+    background: rgba(156, 136, 255, 1) !important;
+    transform: translateY(-1px);
+}
+
+/* Text styles */
+.login-container h2 {
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.login-container label {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Keep form groups spaced nicely */
+.login-container .form-group {
+    margin-bottom: 1rem;
+}
+
+.dropdown-menu-scrollable {
+    max-height: 200px;
+    /* Adjust the height as needed */
+    overflow-y: auto;
+}
+
+@media (max-width: 576px) {
+    .login-container {
+        padding: 20px;
+    }
+}
+
+@media (min-width: 576px) {
+    .login-container {
+        padding: 40px;
+    }
+}

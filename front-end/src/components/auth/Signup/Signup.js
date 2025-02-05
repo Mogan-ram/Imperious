@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { DropdownButton } from "./bootstrap_comp";
-import "./style_login.css"; // Apply the same styles as login
+import { useNavigate, Link } from "react-router-dom";
+import { DropdownButton } from '../../common/bootstrap_comp';
+import "../Signin/style_login.css";
 
 const Signup = () => {
     const [name, setName] = useState('');
@@ -74,6 +74,10 @@ const Signup = () => {
                         <input type="password" className="form-control" placeholder="Enter Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
                     <button className="btn btn-primary btn-block mt-3" onClick={handleSignup}>Signup</button>
+                    <div className="text-center mt-3">
+                        <span>Already have an account? </span>
+                        <Link to="/signin">Login</Link>
+                    </div>
                 </div>
             </div>
         </div>
