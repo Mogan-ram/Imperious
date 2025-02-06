@@ -11,10 +11,12 @@ import Signup from './components/auth/Signup/Signup';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Feature Components
-import Profile from './components/profile/Profile/Profile';
+import Profile from './components/profile/Profile';
 import FeedList from './components/feed/FeedList/FeedList';
 import NewsList from './components/news-events/NewsList/NewsList';
 import EventList from './components/news-events/EventList/EventList';
+import NewsEventList from './components/news-events/NewsEventList/NewsEventList';
+import NewsEventForm from './components/news-events/NewsEventForm/NewsEventForm';
 
 // Styles
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -64,6 +66,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <EventList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/news-events"
+              element={
+                <ProtectedRoute>
+                  <NewsEventList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/news-events/create"
+              element={
+                <ProtectedRoute>
+                  <NewsEventForm />
                 </ProtectedRoute>
               }
             />

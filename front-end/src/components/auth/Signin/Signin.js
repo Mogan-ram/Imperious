@@ -1,38 +1,24 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import "./style_login.css";
 import { useAuth } from '../../../contexts/AuthContext';
 
 const Signin = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
     const navigate = useNavigate();
-    const location = useLocation();
     const { login } = useAuth();
 
-    const handleSignin = async () => {
-        try {
-            const response = await axios.post('http://localhost:5000/login', {
-                email,
-                password
-            });
-            console.log('Login response:', response.data);
-            if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
-                login(response.data.user);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
 
-                // Send them back to the page they tried to visit when they were
-                // redirected to the login page. Use a default of '/' if no prior
-                // location was saved.
-                const from = location.state?.from?.pathname || '/';
-                navigate(from);
-            } else {
-                alert('Invalid response from server');
-            }
-        } catch (error) {
-            console.error('Login error:', error.response?.data || error);
-            alert(error.response?.data?.message || 'Invalid Credentials');
+        try {
+            await login({ email, password });
+            navigate('/feeds');
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to sign in');
         }
     };
 
@@ -47,7 +33,12 @@ const Signin = () => {
                     <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
                         <div className="login-container">
                             <h2 className="text-center">Login</h2>
-                            <form>
+                            {error && (
+                                <div className="alert alert-danger" role="alert">
+                                    {error}
+                                </div>
+                            )}
+                            <form onSubmit={handleSubmit}>
                                 <div className="form-group">
                                     <label htmlFor="email">Email</label>
                                     <input
@@ -75,9 +66,8 @@ const Signin = () => {
                                 </div>
 
                                 <button
-                                    type="button"
+                                    type="submit"
                                     className="btn btn-primary w-100 mt-4"
-                                    onClick={handleSignin}
                                 >
                                     Login
                                 </button>

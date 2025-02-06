@@ -1,6 +1,7 @@
-from pymongo import MongoClient
+from pymongo import MongoClient, DESCENDING
 from bson.objectid import ObjectId
 from datetime import datetime
+import logging
 
 # Configure the MongoDB connection
 try:
@@ -93,70 +94,107 @@ class Feed:
 
 
 class NewsEvent:
+    def __init__(
+        self,
+        title,
+        description,
+        type,
+        author_id,
+        image_path=None,
+        event_date=None,
+        location=None,
+    ):
+        self.title = title
+        self.description = description
+        self.type = type
+        self.author_id = author_id
+        self.image_path = image_path
+        self.event_date = event_date
+        self.location = location
+        self.created_at = datetime.utcnow()
+
     @staticmethod
-    def create(data, author_id):
+    def create(data, author_id, image_path=None):
         news_event = {
             "title": data["title"],
             "description": data["description"],
-            "type": data["type"],  # 'news' or 'event'
+            "type": data["type"],
             "author_id": author_id,
-            "date": data.get("date", datetime.utcnow()),
-            "event_date": data.get("event_date"),  # Only for events
-            "location": data.get("location"),  # Only for events
-            "tags": data.get("tags", []),
+            "image_path": image_path,
             "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "is_active": True,
         }
+
+        if data["type"] == "event":
+            news_event["event_date"] = (
+                datetime.strptime(data["event_date"], "%Y-%m-%d")
+                if "event_date" in data
+                else None
+            )
+            news_event["location"] = data.get("location")
+
         result = news_events_collection.insert_one(news_event)
         return str(result.inserted_id)
 
     @staticmethod
-    def get_all(page=1, limit=10, type=None):
+    def get_all(page=1, limit=10, type=None, sort_by="created_at", order=-1):
         skip = (page - 1) * limit
-        query = {"is_active": True}
+        query = {}
         if type:
-            query["type"] = type
+            query["type"] = type.lower()  # Ensure case-insensitive comparison
+
+        # Add debug logging
+        logging.info(f"MongoDB query: {query}")
 
         total = news_events_collection.count_documents(query)
-        items = (
+        items = list(
             news_events_collection.find(query)
-            .sort("created_at", -1)
+            .sort(sort_by, DESCENDING if order == -1 else 1)
             .skip(skip)
             .limit(limit)
         )
 
+        # Add debug logging
+        logging.info(f"Found {len(items)} items in database")
+
         # Convert ObjectId to string for JSON serialization
-        items_list = []
         for item in items:
             item["_id"] = str(item["_id"])
-            items_list.append(item)
+            if "author_id" in item:
+                item["author_id"] = str(item["author_id"])
+            # Ensure dates are properly formatted
+            if "event_date" in item and item["event_date"]:
+                item["event_date"] = item["event_date"].isoformat()
+            if "created_at" in item:
+                item["created_at"] = item["created_at"].isoformat()
 
-        return {
-            "items": items_list,
-            "total": total,
-            "page": page,
-            "pages": (total + limit - 1) // limit,
-        }
+        return {"items": items, "total": total, "pages": (total + limit - 1) // limit}
 
     @staticmethod
     def get_by_id(id):
-        result = news_events_collection.find_one(
-            {"_id": ObjectId(id), "is_active": True}
-        )
-        if result:
-            result["_id"] = str(result["_id"])
-        return result
+        try:
+            item = news_events_collection.find_one({"_id": ObjectId(id)})
+            if item:
+                item["_id"] = str(item["_id"])
+                if "author_id" in item:
+                    item["author_id"] = str(item["author_id"])
+            return item
+        except:
+            return None
 
     @staticmethod
     def update(id, data):
-        data["updated_at"] = datetime.utcnow()
-        news_events_collection.update_one({"_id": ObjectId(id)}, {"$set": data})
-        return True
+        try:
+            result = news_events_collection.update_one(
+                {"_id": ObjectId(id)}, {"$set": data}
+            )
+            return result.modified_count > 0
+        except:
+            return False
 
     @staticmethod
     def delete(id):
-        news_events_collection.update_one(
-            {"_id": ObjectId(id)}, {"$set": {"is_active": False}}
-        )
-        return True
+        try:
+            result = news_events_collection.delete_one({"_id": ObjectId(id)})
+            return result.deleted_count > 0
+        except:
+            return False

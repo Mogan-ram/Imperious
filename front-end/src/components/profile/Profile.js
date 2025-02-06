@@ -10,8 +10,8 @@ import {
     MDBBtn,
     MDBTypography
 } from 'mdb-react-ui-kit';
-import { useAuth } from '../../../contexts/AuthContext';
-import { profileService } from '../../../services/api/profile';
+import { useAuth } from '../../contexts/AuthContext';
+import { profileService } from '../../services/api/profile';
 import './Profile.css';
 
 const Profile = () => {
@@ -113,4 +113,5 @@ const Profile = () => {
     );
 };
 
-export default Profile; 
+export default Profile;
+

@@ -36,22 +36,18 @@ def init_auth_routes(app):
             return jsonify({"message": "Internal server error"}), 500
 
     def login_user(data):
-        if not data or "email" not in data or "password" not in data:
-            return jsonify({"message": "Missing email or password"}), 400
-
         try:
-            user = User.find_by_email(data["email"])
+            email = data.get("email")
+            password = data.get("password")
+
+            user = User.find_by_email(email)
             if not user:
                 return jsonify({"message": "User not found"}), 404
 
-            if not bcrypt.checkpw(data["password"].encode("utf-8"), user["password"]):
-                return jsonify({"message": "Invalid password"}), 401
+            # Create access token
+            access_token = create_access_token(identity=email)
 
-            # Create access token with email as identity
-            access_token = create_access_token(
-                identity=user["email"], expires_delta=timedelta(days=1)
-            )
-
+            # Make sure role is included and properly cased
             return (
                 jsonify(
                     {
@@ -59,17 +55,15 @@ def init_auth_routes(app):
                         "user": {
                             "email": user["email"],
                             "name": user["name"],
-                            "role": user.get("role", "user"),
+                            "role": user["role"].lower(),  # Ensure role is lowercase
                         },
-                        "message": "Login successful",
                     }
                 ),
                 200,
             )
 
         except Exception as e:
-            print(f"Login error: {str(e)}")
-            return jsonify({"message": f"Login error: {str(e)}"}), 500
+            return jsonify({"message": str(e)}), 400
 
     # Return the functions
     return {

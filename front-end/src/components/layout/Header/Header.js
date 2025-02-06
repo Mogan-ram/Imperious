@@ -13,25 +13,67 @@ const Header = () => {
         navigate('/signin');
     };
 
+    // Function to render role-specific menu items
+    const renderRoleSpecificMenus = () => {
+        if (!user) return null;
+
+        const role = user.role.toLowerCase();
+
+        if (role === 'student') {
+            return (
+                <NavDropdown title="Studies" id="studies-dropdown">
+                    <NavDropdown.Item as={Link} to="/study-groups">Study Groups</NavDropdown.Item>
+                    <NavDropdown.Item as={Link} to="/study-partners">Study Partners</NavDropdown.Item>
+                    <NavDropdown.Item as={Link} to="/study-materials">Study Materials</NavDropdown.Item>
+                </NavDropdown>
+            );
+        }
+
+        if (role === 'alumni') {
+            return (
+                <NavDropdown title="Mentoring" id="mentoring-dropdown">
+                    <NavDropdown.Item as={Link} to="/mentoring/sessions">Mentoring Sessions</NavDropdown.Item>
+                    <NavDropdown.Item as={Link} to="/mentoring/requests">Mentoring Requests</NavDropdown.Item>
+                </NavDropdown>
+            );
+        }
+
+        if (role === 'staff') {
+            return (
+                <NavDropdown title="Incubation" id="incubation-dropdown">
+                    <NavDropdown.Item as={Link} to="/incubation/projects">Projects</NavDropdown.Item>
+                    <NavDropdown.Item as={Link} to="/incubation/applications">Applications</NavDropdown.Item>
+                    <NavDropdown.Item as={Link} to="/incubation/resources">Resources</NavDropdown.Item>
+                </NavDropdown>
+            );
+        }
+    };
+
     return (
         <Navbar bg="light" expand="lg" className="shadow-sm">
             <Container>
-                <Navbar.Brand as={Link} to="/feeds">
-                    <img
-                        src="/your-logo.png"
-                        height="30"
-                        className="d-inline-block align-top"
-                        alt="Logo"
-                    />
+                <Navbar.Brand as={Link} to="/feeds" className="d-flex align-items-center">
+                    <span style={{
+                        fontFamily: "'Segoe UI', Arial, sans-serif",
+                        fontSize: "24px",
+                        fontWeight: "bold",
+                        background: "linear-gradient(45deg, #2196F3, #1976D2)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        letterSpacing: "1px"
+                    }}>
+                        Imperious
+                    </span>
                 </Navbar.Brand>
 
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                     <Nav className="me-auto">
                         <Nav.Link as={Link} to="/feeds">Home</Nav.Link>
-                        <Nav.Link as={Link} to="/news">News</Nav.Link>
-                        <Nav.Link as={Link} to="/events">Events</Nav.Link>
+                        <Nav.Link as={Link} to="/news-events?type=news">News</Nav.Link>
+                        <Nav.Link as={Link} to="/news-events?type=event">Events</Nav.Link>
                         <Nav.Link as={Link} to="/repository">Repository</Nav.Link>
+                        {renderRoleSpecificMenus()}
                     </Nav>
 
                     <Nav>
