@@ -1,0 +1,38 @@
+.project-form .card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.project-form .form-label {
+    font-weight: 500;
+}
+
+.project-form .module-card {
+    border: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.project-form .module-card:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.project-form .progress {
+    height: 25px;
+}
+
+.project-form .progress-bar {
+    font-size: 0.875rem;
+    line-height: 25px;
+}
+
+/* File input styling */
+.project-form .form-control[type="file"] {
+    padding: 0.375rem 0.75rem;
+    line-height: 1.5;
+}
+
+/* Responsive padding adjustments */
+@media (max-width: 768px) {
+    .project-form .card-body {
+        padding: 1rem;
+    }
+}

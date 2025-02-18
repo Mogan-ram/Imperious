@@ -1,84 +1,292 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-import { DropdownButton } from '../../common/bootstrap_comp';
-import "../Signin/style_login.css";
+import "./Signup.css";
+import { Form } from 'react-bootstrap';
+import { useAuth } from '../../../contexts/AuthContext';
+import { FaUserGraduate, FaUserTie, FaChalkboardTeacher } from 'react-icons/fa';
 
 const Signup = () => {
-    const [name, setName] = useState('');
-    const [dept, setDept] = useState('');
-    const [role, setRole] = useState('');
-    const [regno, setRegno] = useState('');
-    const [batch, setBatch] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-
-    const roleValues = ['Student', 'Alumni', 'Staff'];
-    const deptValues = ['CSE', 'EEE', 'IT', 'ECE'];
-    const batchYear = ['2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021'];
-
     const navigate = useNavigate();
+    const { signup } = useAuth();
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [role, setRole] = useState('student');
 
-    const handleSignup = async () => {
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        dept: '',
+        regno: '',
+        batch: '',
+        staffId: ''
+    });
+
+    const [interests, setInterests] = useState({
+        volunteering: false,
+        mentorship: false
+    });
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const validateForm = () => {
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            return false;
+        }
+
+        if (role === 'staff') {
+            if (!formData.staffId.trim()) {
+                setError('Staff ID is required');
+                return false;
+            }
+
+            // Check staff ID format (e.g., CSE01)
+            const staffIdPattern = new RegExp(`^${formData.dept}\\d{2}$`);
+            if (!staffIdPattern.test(formData.staffId)) {
+                setError(`Staff ID should be in format: ${formData.dept}01`);
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!validateForm()) return;
+
         try {
-            await axios.post('http://localhost:5000/signup', { name, dept, role, regno, batch, email, password });
-            navigate('/');
-        } catch (error) {
-            alert('Error creating the user');
+            setError('');
+            setLoading(true);
+
+            const signupData = {
+                name: formData.name.trim(),
+                email: formData.email.trim(),
+                password: formData.password,
+                dept: formData.dept.trim(),
+                role: role.toLowerCase(),
+                ...(role === 'staff'
+                    ? { staff_id: formData.staffId.trim() }
+                    : {
+                        regno: formData.regno.trim().toUpperCase(),
+                        batch: parseInt(formData.batch),
+                        ...(role === 'alumni' && {
+                            volunteering: interests.volunteering,
+                            mentorship: interests.mentorship
+                        })
+                    }
+                )
+            };
+
+            console.log('Submitting signup data:', signupData);
+            await signup(signupData);
+            navigate('/signin');
+
+        } catch (err) {
+            console.error('Signup error:', err);
+            setError(
+                err.response?.data?.message ||
+                'Failed to create an account'
+            );
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="login-background">
-            <video autoPlay loop muted>
-                <source src="/loopy_bg.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-            </video>
-            <div className="container d-flex align-items-center justify-content-center vh-100">
-                <div className="card p-4 login-container" style={{ maxWidth: "400px", width: "100%" }}>
-                    <h2 className="text-center">Signup</h2>
-                    <div className="form-group">
-                        <label>Name</label>
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Enter your Name"
-                            value={name} onChange={(e) => setName(e.target.value)} required />
-                    </div>
-                    <div className="form-group">
-                        <label>Department</label>
-                        <DropdownButton title="Choose Department" items={deptValues} value={dept} onChange={setDept} required />
-                    </div>
-                    <div className="form-group">
-                        <label>Role</label>
-                        <DropdownButton title="User Type" items={roleValues} value={role} onChange={setRole} required />
-                    </div>
-                    {role === 'Student' && (
-                        <div className="form-group">
-                            <label>Reg No</label>
-                            <input type="number" className="form-control" placeholder="Enter your Regno" value={regno} onChange={(e) => setRegno(e.target.value)} required />
-                        </div>
-                    )}
-                    {role === 'Alumni' && (
-                        <div className="form-group">
-                            <label>Batch</label>
-                            <DropdownButton title="Choose Year" items={batchYear} value={batch} onChange={setBatch} required />
-                        </div>
-                    )}
-                    <div className="form-group">
-                        <label>Email</label>
-                        <input type="email" className="form-control" placeholder="Enter your mail id" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                    </div>
-                    <div className="form-group">
-                        <label>Password</label>
-                        <input type="password" className="form-control" placeholder="Enter Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                    </div>
-                    <button className="btn btn-primary btn-block mt-3" onClick={handleSignup}>Signup</button>
-                    <div className="text-center mt-3">
-                        <span>Already have an account? </span>
-                        <Link to="/signin">Login</Link>
-                    </div>
+        <div className="signup-container">
+            <div className="floating-elements"></div>
+            <div className="decoration-1"></div>
+            <div className="decoration-2"></div>
+            <div className="signup-card">
+                <h2 className="signup-title">What type of user are you?</h2>
+
+                <div className="user-type-buttons">
+                    <button
+                        className={`type-btn ${role === 'student' ? 'active' : ''}`}
+                        onClick={() => setRole('student')}
+                    >
+                        <FaUserGraduate />
+                        Student
+                    </button>
+                    <button
+                        className={`type-btn ${role === 'alumni' ? 'active' : ''}`}
+                        onClick={() => setRole('alumni')}
+                    >
+                        <FaUserTie />
+                        Alumni
+                    </button>
+                    <button
+                        className={`type-btn ${role === 'staff' ? 'active' : ''}`}
+                        onClick={() => setRole('staff')}
+                    >
+                        <FaChalkboardTeacher />
+                        Staff
+                    </button>
                 </div>
+
+                <Form onSubmit={handleSubmit}>
+                    <div className="form-row">
+                        <div className="form-field">
+                            <input
+                                type="text"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                placeholder="Full name"
+                                required
+                            />
+                        </div>
+
+                        <div className="form-field">
+                            <input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                placeholder="Email"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-row">
+                        <div className="form-field">
+                            <select
+                                name="dept"
+                                value={formData.dept}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Select Department</option>
+                                <option value="CSE">Computer Science and Engineering</option>
+                                <option value="ECE">Electronics and Communication Engineering</option>
+                                <option value="MECH">Mechanical Engineering</option>
+                                <option value="CIVIL">Civil Engineering</option>
+                                <option value="EEE">Electrical and Electronics Engineering</option>
+                                <option value="BME">Biomedical Engineering</option>
+                                <option value="AERO">Aerospace Engineering</option>
+                                <option value="MBA">Master of Business Administration</option>
+                                <option value="MCA">Master of Computer Applications</option>
+                            </select>
+                        </div>
+
+                        {role !== 'staff' ? (
+                            <div className="form-field">
+                                <input
+                                    type="text"
+                                    name="regno"
+                                    value={formData.regno}
+                                    onChange={handleChange}
+                                    placeholder="Register Number"
+                                    required
+                                />
+                            </div>
+                        ) : (
+                            <div className="form-field">
+                                <input
+                                    type="text"
+                                    name="staffId"
+                                    value={formData.staffId}
+                                    onChange={handleChange}
+                                    placeholder="Enter Staff ID "
+                                    required
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="form-row">
+                        {(role === 'student' || role === 'alumni') && (
+                            <div className="form-field">
+                                <input
+                                    type="number"
+                                    name="batch"
+                                    value={formData.batch}
+                                    onChange={handleChange}
+                                    placeholder="Batch Year"
+                                    required
+                                />
+                            </div>
+                        )}
+
+                        <div className="form-field">
+                            <input
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                placeholder="Password"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-row">
+                        <div className="form-field">
+                            <input
+                                type="password"
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                placeholder="Confirm Password"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {role === 'alumni' && (
+                        <div className="form-field">
+                            <label>Willing to</label>
+                            <div className="checkbox-group">
+                                <label className="checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={interests.volunteering}
+                                        onChange={(e) => setInterests(prev => ({
+                                            ...prev,
+                                            volunteering: e.target.checked
+                                        }))}
+                                    />
+                                    Volunteering
+                                </label>
+                                <label className="checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={interests.mentorship}
+                                        onChange={(e) => setInterests(prev => ({
+                                            ...prev,
+                                            mentorship: e.target.checked
+                                        }))}
+                                    />
+                                    Mentorship
+                                </label>
+                            </div>
+                        </div>
+                    )}
+
+                    {error && <div className="error-message">{error}</div>}
+
+                    <button
+                        type="submit"
+                        className="signup-button"
+                        disabled={loading}
+                    >
+                        Create account
+                    </button>
+
+                    <div className="login-link">
+                        Already have an account? <Link to="/signin">Log in</Link>
+                    </div>
+                </Form>
             </div>
         </div>
     );

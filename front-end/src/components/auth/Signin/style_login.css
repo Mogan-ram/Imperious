@@ -1,32 +1,57 @@
 .login-background {
+    min-height: 100vh;
+    background: linear-gradient(45deg,
+            rgba(45, 45, 85, 0.9) 0%,
+            rgba(50, 55, 115, 0.9) 50%,
+            rgba(50, 55, 115, 0.9) 75%,
+            rgba(45, 45, 85, 0.9) 100%);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animated background elements */
+.floating-elements {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1;
-    background: linear-gradient(45deg,
-            rgba(156, 136, 255, 0.7) 0%,
-            rgba(169, 185, 255, 0.7) 25%,
-            rgba(144, 205, 244, 0.7) 50%,
-            rgba(156, 136, 255, 0.7) 75%,
-            rgba(191, 185, 255, 0.7) 100%);
-    animation: gradientBG 15s ease infinite;
-    background-size: 400% 400%;
+    pointer-events: none;
+    z-index: 0;
 }
 
-@keyframes gradientBG {
-    0% {
-        background-position: 0% 50%;
-    }
+.floating-elements::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        linear-gradient(45deg, transparent 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%) 0 0/20px 20px,
+        linear-gradient(-45deg, transparent 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%) 0 0/20px 20px;
+    animation: floatBackground 30s linear infinite;
+}
 
-    50% {
-        background-position: 100% 50%;
-    }
-
-    100% {
-        background-position: 0% 50%;
-    }
+.floating-elements::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    right: -50%;
+    bottom: -50%;
+    background:
+        radial-gradient(2px 2px at 40px 60px, rgba(255, 255, 255, 0.1), transparent),
+        radial-gradient(2px 2px at 20px 50px, rgba(255, 255, 255, 0.05), transparent),
+        radial-gradient(2px 2px at 30px 100px, rgba(255, 255, 255, 0.1), transparent),
+        radial-gradient(2px 2px at 200px 150px, rgba(255, 255, 255, 0.05), transparent);
+    animation: floatStars 15s linear infinite;
 }
 
 .login-background video {
@@ -34,19 +59,20 @@
 }
 
 .login-container {
-    position: relative;
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.03) !important;
-    border-radius: 16px !important;
-    padding: 2rem !important;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.1),
+            rgba(255, 255, 255, 0.05));
+    padding: clamp(20px, 5vw, 30px);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
     max-width: 400px;
-
-    /* Enhanced Glassmorphism effect */
-    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.05) !important;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: white;
+    position: relative;
+    z-index: 1;
+    margin: 10px;
 }
 
 /* Style for input fields while keeping Bootstrap's form-control */
@@ -54,8 +80,9 @@
     background: rgba(255, 255, 255, 0.07) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: white !important;
-    padding: 0.75rem !important;
+    padding: clamp(8px, 2vw, 12px) !important;
     transition: all 0.3s ease !important;
+    font-size: clamp(14px, 2vw, 16px) !important;
 }
 
 .login-container .form-control:focus {
@@ -68,18 +95,39 @@
     color: rgba(255, 255, 255, 0.5);
 }
 
-/* Style for the submit button while keeping Bootstrap's btn class */
-.login-container .btn {
-    background: rgba(156, 136, 255, 0.8) !important;
-    border: none !important;
-    padding: 0.75rem !important;
-    font-weight: 500 !important;
-    transition: all 0.3s ease !important;
+/* Button styles */
+.login-container .btn,
+.signup-button {
+    padding: clamp(14px, 3vw, 17px) clamp(30px, 5vw, 40px);
+    border-radius: 50px;
+    cursor: pointer;
+    border: 0;
+    background-color: white;
+    box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-size: clamp(13px, 2vw, 15px);
+    transition: all 0.5s ease;
+    width: 100%;
+    color: #333;
 }
 
-.login-container .btn:hover {
-    background: rgba(156, 136, 255, 1) !important;
-    transform: translateY(-1px);
+.login-container .btn:hover,
+.signup-button:hover {
+    letter-spacing: 3px;
+    background-color: hsl(261deg 80% 48%);
+    color: hsl(0, 0%, 100%);
+    box-shadow: rgb(93 24 220) 0px 7px 29px 0px;
+}
+
+.login-container .btn:active,
+.signup-button:active {
+    letter-spacing: 3px;
+    background-color: hsl(261deg 80% 48%);
+    color: hsl(0, 0%, 100%);
+    box-shadow: rgb(93 24 220) 0px 0px 0px 0px;
+    transform: translateY(10px);
+    transition: 100ms;
 }
 
 /* Text styles */
@@ -87,6 +135,7 @@
     color: rgba(255, 255, 255, 0.95);
     margin-bottom: 1.5rem;
     font-weight: 500;
+    font-size: clamp(20px, 4vw, 24px);
 }
 
 .login-container label {
@@ -106,14 +155,76 @@
     overflow-y: auto;
 }
 
-@media (max-width: 576px) {
+@media (max-width: 480px) {
     .login-container {
-        padding: 20px;
+        padding: 15px;
+    }
+
+    .login-container .form-group {
+        margin-bottom: 15px;
+    }
+
+    .login-container label {
+        font-size: 12px;
     }
 }
 
-@media (min-width: 576px) {
+@media (max-height: 600px) {
+    .login-background {
+        padding: 10px 0;
+    }
+}
+
+/* For very small devices */
+@media (max-width: 320px) {
     .login-container {
-        padding: 40px;
+        padding: 10px;
+    }
+
+    .login-container .btn {
+        padding: 12px 25px;
+        font-size: 12px;
+    }
+}
+
+/* For tablets and landscape phones */
+@media (min-width: 768px) and (max-height: 1024px) {
+    .login-container {
+        margin: 20px auto;
+    }
+}
+
+/* Animations */
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes floatBackground {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    100% {
+        transform: translate(20px, 20px);
+    }
+}
+
+@keyframes floatStars {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
     }
 }

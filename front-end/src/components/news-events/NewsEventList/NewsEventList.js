@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Pagination } from 'react-bootstrap';
+import { Card, Pagination, Button } from 'react-bootstrap';
 import { useLocation, Link } from 'react-router-dom';
 import { newsEventsService } from '../../../services/api/news-events';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -38,6 +38,23 @@ const NewsEventList = () => {
     };
 
     const renderItem = (item) => {
+        const canDelete = user && (
+            ['staff', 'alumni'].includes(user.role.toLowerCase()) ||
+            user._id === item.author_id
+        );
+
+        const handleDelete = async () => {
+            if (window.confirm('Are you sure you want to delete this item?')) {
+                try {
+                    await newsEventsService.delete(item._id);
+                    fetchItems(); // Refresh the list
+                } catch (error) {
+                    console.error('Error deleting item:', error);
+                    alert('Failed to delete item');
+                }
+            }
+        };
+
         if (type === 'event') {
             return (
                 <Card className="mb-3">
@@ -45,18 +62,25 @@ const NewsEventList = () => {
                         <Card.Img variant="top" src={item.image_path} />
                     )}
                     <Card.Body>
-                        <Card.Title>{item.title}</Card.Title>
-                        <Card.Subtitle className="mb-2 text-muted">Event</Card.Subtitle>
-                        <Card.Text>{item.description}</Card.Text>
-                        <div className="event-details">
-                            <p>
-                                <strong>Date:</strong>{' '}
-                                {item.event_date ? new Date(item.event_date).toLocaleDateString() : 'Date not specified'}
-                            </p>
-                            <p>
-                                <strong>Location:</strong>{' '}
-                                {item.location || 'Location not specified'}
-                            </p>
+                        <div className="d-flex justify-content-between align-items-start">
+                            <div>
+                                <Card.Title>{item.title}</Card.Title>
+                                <Card.Subtitle className="mb-2 text-muted">Event</Card.Subtitle>
+                                <Card.Text>{item.description}</Card.Text>
+                                <div className="event-details">
+                                    <p><strong>Date:</strong> {item.event_date ? new Date(item.event_date).toLocaleDateString() : 'Date not specified'}</p>
+                                    <p><strong>Location:</strong> {item.location || 'Location not specified'}</p>
+                                </div>
+                            </div>
+                            {canDelete && (
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={handleDelete}
+                                >
+                                    Delete
+                                </Button>
+                            )}
                         </div>
                     </Card.Body>
                 </Card>
@@ -69,12 +93,25 @@ const NewsEventList = () => {
                     <Card.Img variant="top" src={item.image_path} />
                 )}
                 <Card.Body>
-                    <Card.Title>{item.title}</Card.Title>
-                    <Card.Subtitle className="mb-2 text-muted">News</Card.Subtitle>
-                    <Card.Text>{item.description}</Card.Text>
-                    <small className="text-muted">
-                        Posted on: {new Date(item.created_at).toLocaleDateString()}
-                    </small>
+                    <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                            <Card.Title>{item.title}</Card.Title>
+                            <Card.Subtitle className="mb-2 text-muted">News</Card.Subtitle>
+                            <Card.Text>{item.description}</Card.Text>
+                            <small className="text-muted">
+                                Posted on: {new Date(item.created_at).toLocaleDateString()}
+                            </small>
+                        </div>
+                        {canDelete && (
+                            <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={handleDelete}
+                            >
+                                Delete
+                            </Button>
+                        )}
+                    </div>
                 </Card.Body>
             </Card>
         );
