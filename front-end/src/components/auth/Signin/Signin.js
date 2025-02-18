@@ -7,27 +7,39 @@ const Signin = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { login } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setLoading(true);
 
         try {
-            await login({ email, password });
-            navigate('/feeds');
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to sign in');
+            const success = await login({
+                email: email,
+                password: password
+            });
+
+            if (success) {
+                navigate('/');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            if (error.message === 'Network Error') {
+                setError('Unable to connect to server. Please try again.');
+            } else {
+                setError(error.response?.data?.message || 'Login failed. Please try again.');
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <div className="login-background">
-            {/* <video autoPlay loop muted>
-                <source src="/loopy_bg.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-            </video> */}
+            <div className="floating-elements"></div>
             <div className="container">
                 <div className="row min-vh-100 align-items-center justify-content-center">
                     <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
@@ -68,8 +80,9 @@ const Signin = () => {
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-100 mt-4"
+                                    disabled={loading}
                                 >
-                                    Login
+                                    {loading ? 'Logging in...' : 'Login'}
                                 </button>
                             </form>
                             <div className="text-center mt-3">

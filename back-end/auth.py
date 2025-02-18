@@ -47,7 +47,6 @@ def init_auth_routes(app):
             # Create access token
             access_token = create_access_token(identity=email)
 
-            # Make sure role is included and properly cased
             return (
                 jsonify(
                     {
@@ -55,7 +54,7 @@ def init_auth_routes(app):
                         "user": {
                             "email": user["email"],
                             "name": user["name"],
-                            "role": user["role"].lower(),  # Ensure role is lowercase
+                            "role": user["role"].lower(),
                         },
                     }
                 ),
@@ -82,7 +81,7 @@ def create_user(data):
     user = User(
         name=data["name"],
         dept=data["dept"],
-        role=data.get("role", "student").lower(),  # Normalize role
+        role=data.get("role", "student").lower(),
         regno=data["regno"],
         batch=data["batch"],
         email=data["email"],
@@ -113,13 +112,9 @@ def get_user_profile(token):
         return jsonify({"message": "Error processing request"}), 400
 
 
-def update_user_profile(token, data):
-    if not token or not token.startswith("Bearer "):
-        return jsonify({"message": "Token is missing or invalid"}), 400
+def update_user_profile(email, data):
     try:
-        token = token.split(" ")[1]
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        User.update_by_email(payload["email"], data)
+        User.update_by_email(email, data)
         return jsonify({"message": "Profile updated successfully"}), 200
-    except jwt.DecodeError:
-        return jsonify({"message": "Invalid token"}), 401
+    except Exception as e:
+        return jsonify({"message": str(e)}), 400

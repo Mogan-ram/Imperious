@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from '../../../contexts/AuthContext';
-import { feedService } from '../../../services/api/feed';
-import FeedItem from '../FeedItem/FeedItem';
+import { Link } from 'react-router-dom';
 import FeedCreate from '../FeedCreate/FeedCreate';
+import { Card, Button } from 'react-bootstrap';
+import axios from '../../../services/axios';
 
 const FeedList = () => {
     const [feeds, setFeeds] = useState([]);
@@ -15,7 +16,7 @@ const FeedList = () => {
 
     const fetchFeeds = async () => {
         try {
-            const response = await feedService.getFeeds();
+            const response = await axios.get('/feeds');
             setFeeds(response.data);
         } catch (error) {
             setError("Error fetching feeds. Please try again later.");
@@ -27,6 +28,18 @@ const FeedList = () => {
         setFeeds([newFeed, ...feeds]);
     };
 
+    const handleDelete = async (feedId) => {
+        if (window.confirm('Are you sure you want to delete this feed?')) {
+            try {
+                await axios.delete(`/feeds/${feedId}`);
+                setFeeds(feeds.filter(feed => feed._id !== feedId));
+            } catch (error) {
+                console.error('Error deleting feed:', error);
+                alert('Failed to delete feed');
+            }
+        }
+    };
+
     return (
         <div className="container-fluid">
             <div className="row">
@@ -35,15 +48,15 @@ const FeedList = () => {
                     <div className="position-fixed">
                         <div className="p-3">
                             <div className="d-flex flex-column gap-3">
-                                <a href="#" className="text-decoration-none text-dark fw-bold">
+                                <Link to="/feeds" className="text-decoration-none text-dark fw-bold">
                                     <i className="bi bi-house-door me-2"></i> Home
-                                </a>
-                                <a href="#" className="text-decoration-none text-dark">
+                                </Link>
+                                <Link to="/profile" className="text-decoration-none text-dark">
                                     <i className="bi bi-person me-2"></i> Profile
-                                </a>
-                                <a href="#" className="text-decoration-none text-dark">
+                                </Link>
+                                <Link to="/notifications" className="text-decoration-none text-dark">
                                     <i className="bi bi-bell me-2"></i> Notifications
-                                </a>
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -62,7 +75,28 @@ const FeedList = () => {
                     {/* Feed Items */}
                     <div className="feeds">
                         {feeds.map((feed) => (
-                            <FeedItem key={feed._id} feed={feed} />
+                            <Card key={feed._id} className="mb-3">
+                                <Card.Body>
+                                    <div className="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <Card.Title>{feed.author.name}</Card.Title>
+                                            <Card.Text>{feed.content}</Card.Text>
+                                            <small className="text-muted">
+                                                {new Date(feed.timestamp).toLocaleString()}
+                                            </small>
+                                        </div>
+                                        {(user.email === feed.author.email || user.role === 'staff') && (
+                                            <Button
+                                                variant="danger"
+                                                size="sm"
+                                                onClick={() => handleDelete(feed._id)}
+                                            >
+                                                Delete
+                                            </Button>
+                                        )}
+                                    </div>
+                                </Card.Body>
+                            </Card>
                         ))}
                     </div>
                 </div>

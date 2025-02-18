@@ -1,33 +1,26 @@
-import axios from '../../services/axios';
+import axios from '../axios';
+
+const BASE_URL = '/news-events';
 
 export const newsEventsService = {
-    getAll: async (page = 1, type) => {
-        const response = await axios.get(`/api/news-events`, {
-            params: {
-                page,
-                type,
-                limit: 10
-            }
-        });
-        return response;
-    },
+    getAll: (page = 1, type) => axios.get('/news-events', {
+        params: {
+            page,
+            type,
+            limit: 10
+        }
+    }),
 
-    create: async (formData) => {
-        const response = await axios.post('/api/news-events', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
-        return response;
-    },
+    create: (data) => axios.post(BASE_URL, data),  // And here
+    update: (id, data) => axios.put(`${BASE_URL}/${id}`, data),
+    delete: (id) => axios.delete(`${BASE_URL}/${id}`),
 
-    update: async (id, data) => {
-        const response = await axios.put(`/api/news-events/${id}`, data);
-        return response;
-    },
-
-    delete: async (id) => {
-        const response = await axios.delete(`/api/news-events/${id}`);
-        return response;
+    createNewsEvent: async (data) => {
+        try {
+            const response = await axios.post(BASE_URL, data);
+            return response.data;
+        } catch (error) {
+            throw error;
+        }
     }
 };

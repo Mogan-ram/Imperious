@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from '../../../services/axios';
 import { useAuth } from '../../../contexts/AuthContext';
+import { toast } from 'react-toastify';
 
 const NewsEventForm = () => {
     const { user } = useAuth();
@@ -37,15 +38,15 @@ const NewsEventForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Double-check permissions
-        if (!user || !['staff', 'alumni'].includes(user.role?.toLowerCase())) {
-            alert("You do not have permission to create news or events.");
+        // Validate required fields
+        if (!title || !description || !type) {
+            toast.error("Please fill in all required fields");
             return;
         }
 
         // Validate event-specific fields
-        if (type === "event" && !eventDate) {
-            alert("Please select an event date");
+        if (type === "event" && (!eventDate || !location)) {
+            toast.error("Please fill in all event details");
             return;
         }
 
@@ -64,16 +65,19 @@ const NewsEventForm = () => {
         }
 
         try {
-            await axios.post("/api/news-events", formData, {
+            const response = await axios.post("/news-events", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 }
             });
-            alert("News/Event created successfully!");
-            navigate(`/news-events?type=${type}`);
+
+            if (response.status === 201) {
+                toast.success("News/Event created successfully!");
+                navigate(`/news-events?type=${type}`);
+            }
         } catch (error) {
             console.error("Error creating news/event:", error);
-            alert(error.response?.data?.message || "Failed to create news/event.");
+            toast.error(error.response?.data?.message || "Failed to create news/event");
         }
     };
 

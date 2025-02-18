@@ -1,37 +1,39 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, current_app
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager,
     jwt_required,
     get_jwt_identity,
     create_access_token,
-    get_jwt,
-    verify_jwt_in_request,
+    create_refresh_token,
 )
 from auth import init_auth_routes, SECRET_KEY
-from models import Feed, User, NewsEvent as NewsEventModel
-from datetime import datetime, timedelta
+from models import Feed, User, NewsEvent, Project, MentorshipRequest, Collaboration
+from datetime import datetime, timedelta, timezone
 from cache import get_cached_news_events
 from werkzeug.utils import secure_filename
 import os
 import logging
+import bcrypt
+from pymongo import MongoClient
+from bson import ObjectId
+import atexit
+import signal
+
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# Fix CORS
+# Configure CORS properly
 CORS(
     app,
     resources={
         r"/*": {
-            "origins": "http://localhost:3000",
+            "origins": ["http://localhost:3000"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
-        },
-        r"/news-events/*": {
-            "origins": ["http://localhost:3000"],
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-        },
+            "supports_credentials": True,
+        }
     },
 )
 
@@ -40,21 +42,49 @@ app.config["JWT_SECRET_KEY"] = SECRET_KEY
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 jwt = JWTManager(app)
 
+# File upload configuration
+UPLOAD_FOLDER = "uploads/projects"
+ALLOWED_EXTENSIONS = {
+    "txt",
+    "pdf",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "md",
+    "py",
+    "js",
+    "html",
+    "css",
+    "json",
+    "doc",
+    "docx",
+    "zip",
+    "rar",
+    "java",
+    "cpp",
+    "h",
+    "c",
+}
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
+
+# Initialize MongoDB client and database
+client = MongoClient("mongodb://localhost:27017/")
+db = client["imperious"]
+projects_collection = db["projects"]
+users_collection = db["users"]
+collaboration_requests = db["collaboration_requests"]
+
 # Initialize auth routes
 auth_functions = init_auth_routes(app)
 
-UPLOAD_FOLDER = "/path/to/upload"
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# Configure logging - change DEBUG to INFO for less verbose output
-logging.basicConfig(level=logging.INFO)
-
-# Disable MongoDB debug logs
-logging.getLogger("pymongo").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# Add this error handler
+# Error handlers
 @jwt.invalid_token_loader
 def invalid_token_callback(error):
     return jsonify({"message": "Invalid token"}), 401
@@ -62,190 +92,973 @@ def invalid_token_callback(error):
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_data):
-    return jsonify({"message": "Token has expired"}), 401
+    app.logger.error(f"Token expired: {jwt_data}")
+    return jsonify(message="Token has expired"), 401
 
 
 @jwt.unauthorized_loader
 def missing_token_callback(error):
-    return jsonify({"message": "Missing token"}), 401
+    app.logger.error(f"Missing token error: {error}")
+    return jsonify(message="Missing authorization token"), 401
 
 
-# routes
+# Auth routes
 @app.route("/signup", methods=["POST"])
 def signup():
-    data = request.json
-    return auth_functions["create_user"](data)
+    try:
+        data = request.get_json()
+
+        # Common fields for all roles
+        name = data.get("name")
+        email = data.get("email")
+        password = data.get("password")
+        dept = data.get("dept")
+        role = data.get("role", "student")
+
+        # Initialize optional fields
+        regno = None
+        batch = None
+        staff_id = None
+
+        # Set role-specific fields
+        if role.lower() == "staff":
+            staff_id = data.get("staff_id")
+        else:
+            regno = data.get("regno")
+            batch = data.get("batch")
+
+        # Create and save user
+        user = User(
+            name=name,
+            email=email,
+            password=password,
+            dept=dept,
+            role=role,
+            regno=regno,
+            batch=batch,
+            staff_id=staff_id,
+        )
+
+        user.save()
+        return jsonify({"message": "User created successfully"}), 201
+
+    except ValueError as e:
+        return jsonify({"message": str(e)}), 400
+    except Exception as e:
+        return jsonify({"message": "An error occurred during signup"}), 500
 
 
 @app.route("/login", methods=["POST"])
 def login():
     try:
         data = request.get_json()
-        return auth_functions["login_user"](data)
+        user = User.find_by_email(data["email"])
+
+        if user and User.verify_password(data["password"], user["password"]):
+            access_token = create_access_token(identity=data["email"])
+            refresh_token = create_refresh_token(identity=data["email"])
+
+            return (
+                jsonify(
+                    {
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "user": {
+                            "email": user["email"],
+                            "name": user["name"],
+                            "role": user["role"],
+                            "dept": user["dept"],
+                        },
+                    }
+                ),
+                200,
+            )
+        else:
+            return jsonify({"message": "Invalid email or password"}), 401
+
     except Exception as e:
-        return jsonify({"message": str(e)}), 400
+        print(f"Login error: {str(e)}")  # Debug log
+        return jsonify({"message": str(e)}), 500
 
 
-@app.route("/profile", methods=["GET"])
+# Profile routes
+@app.route("/profile", methods=["GET", "PUT"])
 @jwt_required()
-def get_profile():
-    try:
-        current_user = get_jwt_identity()
-        user = User.find_by_email(current_user)
-        if not user:
-            return jsonify({"message": "User not found"}), 404
-
-        # Convert ObjectId to string and remove sensitive data
-        user_data = {
-            "email": user["email"],
-            "name": user["name"],
-            "role": user.get("role", "user"),
-            "dept": user.get("dept"),
-            "regno": user.get("regno"),
-            "batch": user.get("batch"),
-            "_id": str(user["_id"]),  # Convert ObjectId to string
-        }
-
-        return jsonify(user_data), 200
-    except Exception as e:
-        logging.error(f"Profile error: {str(e)}")
-        return jsonify({"message": str(e)}), 400
+def handle_profile():
+    if request.method == "GET":
+        return auth_functions["get_profile_handler"]()
+    else:
+        return auth_functions["update_user_profile"](
+            get_jwt_identity(), request.get_json()
+        )
 
 
-@app.route("/profile", methods=["PUT"])
-@jwt_required()
-def update_profile():
-    try:
-        data = request.get_json()
-        result = auth_functions["update_user_profile"](get_jwt_identity(), data)
-        return result
-    except Exception as e:
-        return jsonify({"message": str(e)}), 400
-
-
+# Feed routes
 @app.route("/feeds", methods=["GET", "POST"])
 @jwt_required()
 def handle_feeds():
+    current_user = get_jwt_identity()
+
+    if request.method == "GET":
+        feeds = Feed.get_all()
+        return jsonify(feeds), 200
+
+    elif request.method == "POST":
+        content = request.json.get("content")
+        feed_id = Feed.create_feed(current_user, content)
+        return jsonify({"id": feed_id}), 201
+
+
+@app.route("/feeds/<id>", methods=["DELETE"])
+@jwt_required()
+def delete_feed(id):
     try:
         current_user = get_jwt_identity()
         user = User.find_by_email(current_user)
+        feed = Feed.get_by_id(id)
 
-        if request.method == "GET":
-            feeds = Feed.get_all()
-            return jsonify(feeds), 200
+        if not feed:
+            return jsonify({"message": "Feed not found"}), 404
 
-        elif request.method == "POST":
-            data = request.json
-            feed = Feed(content=data["content"], author=current_user)
-            feed_data = feed.save()
+        # Check if user is the author or staff
+        if feed["author"] != current_user and user["role"] != "staff":
+            return jsonify({"message": "Permission denied"}), 403
 
-            feed_data["author"] = {
-                "email": user["email"],
-                "name": user["name"],
-            }
-            return jsonify(feed_data), 201
-
+        Feed.delete(id)
+        return jsonify({"message": "Feed deleted successfully"}), 200
     except Exception as e:
         return jsonify({"message": str(e)}), 400
 
 
 # News and Events Routes
-@app.route("/api/news-events", methods=["GET", "POST"])
-@jwt_required()
+@app.route("/news-events", methods=["GET", "POST", "OPTIONS"])
+@jwt_required(optional=True)
 def handle_news_events():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    if request.method == "GET":
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 10))
+        type = request.args.get("type")
+        return jsonify(get_cached_news_events(page, limit, type)), 200
+
+    elif request.method == "POST":
+        try:
+            current_user = get_jwt_identity()
+            user = User.find_by_email(current_user)
+
+            if not user or user.get("role", "").lower() not in ["staff", "alumni"]:
+                return jsonify({"message": "Permission denied"}), 403
+
+            # Get form data
+            data = {
+                "title": request.form.get("title"),
+                "description": request.form.get("description"),
+                "type": request.form.get("type"),
+                "created_at": datetime.now(timezone.utc),
+            }
+
+            # Add event-specific fields
+            if data["type"] == "event":
+                data["event_date"] = request.form.get("event_date")
+                data["location"] = request.form.get("location")
+
+            # Validate required fields
+            required_fields = ["title", "description", "type"]
+            if data["type"] == "event":
+                required_fields.extend(["event_date", "location"])
+
+            for field in required_fields:
+                if not data.get(field):
+                    return jsonify({"message": f"{field} is required"}), 400
+
+            # Handle image upload
+            if "image" in request.files:
+                file = request.files["image"]
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+                    data["image_url"] = f"/uploads/{filename}"
+
+            # Create news/event with author_id
+            result = NewsEvent.create(data, author_id=str(user["_id"]))
+            return jsonify({"id": str(result)}), 201
+
+        except Exception as e:
+            app.logger.error(f"Error creating news/event: {str(e)}")
+            return jsonify({"message": str(e)}), 500
+
+
+@app.route("/news-events/<id>", methods=["GET", "PUT", "DELETE", "OPTIONS"])
+@jwt_required(optional=True)
+def handle_single_news_event(id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
+    if request.method == "GET":
+        news_event = NewsEvent.get_by_id(id)
+        if news_event:
+            return jsonify(news_event), 200
+        else:
+            return jsonify({"message": "News event not found"}), 404
+    elif request.method == "PUT":
+        try:
+            current_user = get_jwt_identity()
+            if not current_user:
+                return jsonify({"message": "Unauthorized"}), 401
+            user = User.find_by_email(current_user)
+
+            # Only staff and alumni can update news/events
+            if user["role"].lower() not in ["staff", "alumni"]:
+                return jsonify({"message": "Permission denied"}), 403
+
+            data = request.get_json()
+            NewsEvent.update(id, data)
+            return jsonify({"message": "News event updated successfully"}), 200
+        except Exception as e:
+            return jsonify({"message": str(e)}), 400
+    elif request.method == "DELETE":
+        try:
+            current_user = get_jwt_identity()
+            if not current_user:
+                return jsonify({"message": "Unauthorized"}), 401
+            user = User.find_by_email(current_user)
+
+            # Only staff and alumni can delete news/events
+            if user["role"].lower() not in ["staff", "alumni"]:
+                return jsonify({"message": "Permission denied"}), 403
+
+            NewsEvent.delete(id)
+            return jsonify({"message": "News event deleted successfully"}), 200
+        except Exception as e:
+            return jsonify({"message": str(e)}), 400
+
+
+# Project routes
+@app.route("/projects", methods=["POST"])
+@jwt_required()
+def create_project():
     try:
-        verify_jwt_in_request()
-        user_email = get_jwt_identity()
-        user = User.find_by_email(user_email)
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        data = request.get_json()
 
-        if request.method == "GET":
-            page = int(request.args.get("page", 1))
-            limit = int(request.args.get("limit", 10))
-            type = request.args.get("type")
-            sort_by = request.args.get("sort_by", "created_at")
-            order = int(request.args.get("order", -1))
+        # Validate required fields
+        required_fields = ["title", "abstract", "modules"]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"message": f"{field} is required"}), 400
 
-            # Add debug logging
-            logging.info(f"Fetching {type} with params: page={page}, limit={limit}")
+        # Create project
+        project = Project(
+            title=data["title"],
+            abstract=data["abstract"],
+            techStack=data.get("techStack", []),
+            githubLink=data.get("githubLink", ""),
+            modules=data.get("modules", []),
+            created_by=user["_id"],
+        )
 
-            result = get_cached_news_events(page, limit, type, sort_by, order)
+        project_id = project.save()
+        return (
+            jsonify({"message": "Project created successfully", "id": project_id}),
+            201,
+        )
 
-            # Add debug logging
-            logging.info(f"Found {len(result.get('items', []))} items")
+    except Exception as e:
+        return jsonify({"message": "Failed to create project"}), 500
 
-            return jsonify(result), 200
 
-        elif request.method == "POST":
-            # Add more detailed role checking
-            user_role = user.get("role", "").lower()
-            has_permission = user_role in ["staff", "alumni"]
+@app.route("/projects/<id>/files", methods=["POST"])
+@jwt_required()
+def upload_project_files(id):
+    try:
+        current_user = get_jwt_identity()
 
-            logging.info(
-                f"Role check: user_role={user_role}, has_permission={has_permission}"
+        # Verify project exists and user has access
+        project = Project.get_by_id(id)
+        if not project:
+            return jsonify({"message": "Project not found"}), 404
+
+        if project["created_by"] != current_user:
+            return jsonify({"message": "Unauthorized"}), 403
+
+        if "file" not in request.files:
+            return jsonify({"message": "No file part"}), 400
+
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"message": "No selected file"}), 400
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config["UPLOAD_FOLDER"], id)
+            os.makedirs(file_path, exist_ok=True)
+            file.save(os.path.join(file_path, filename))
+
+            return jsonify({"message": "File uploaded successfully"}), 200
+
+        return jsonify({"message": "File type not allowed"}), 400
+
+    except Exception as e:
+        return jsonify({"message": "Failed to upload file"}), 500
+
+
+@app.route("/projects", methods=["GET"])
+@jwt_required()
+def get_projects():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        if not user or "_id" not in user:
+            return jsonify({"message": "User not found"}), 404
+
+        projects = list(projects_collection.find({"created_by": ObjectId(user["_id"])}))
+
+        # Convert ObjectId to string for JSON serialization
+        for project in projects:
+            project["_id"] = str(project["_id"])
+            project["created_by"] = str(project["_id"])
+            # Rename tech_stack to techStack for frontend compatibility
+            if "tech_stack" in project:
+                project["techStack"] = project.pop("tech_stack")
+
+        return jsonify(projects), 200
+
+    except Exception as e:
+        return jsonify({"message": "Failed to fetch projects"}), 500
+
+
+@app.route("/projects/<project_id>", methods=["GET"])
+@jwt_required()
+def get_project(project_id):
+    try:
+        project = projects_collection.find_one({"_id": ObjectId(project_id)})
+        if not project:
+            return jsonify({"message": "Project not found"}), 404
+
+        # Convert ObjectId to string for JSON serialization
+        project["_id"] = str(project["_id"])
+        project["created_by"] = str(project["created_by"])
+
+        return jsonify(project), 200
+
+    except Exception as e:
+        return jsonify({"message": "Failed to fetch project"}), 500
+
+
+@app.route("/uploads/projects/<path:filename>")
+@jwt_required()
+def serve_project_file(filename):
+    try:
+        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    except Exception as e:
+        return jsonify({"message": "File not found"}), 404
+
+
+@app.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    try:
+        current_user = get_jwt_identity()
+        new_access_token = create_access_token(identity=current_user)
+        return (
+            jsonify(
+                access_token=new_access_token, message="Token refreshed successfully"
+            ),
+            200,
+        )
+    except Exception as e:
+        app.logger.error(f"Token refresh error: {str(e)}")
+        return jsonify(message="Token refresh failed"), 401
+
+
+@app.route("/debug/projects", methods=["GET"])
+@jwt_required()
+def debug_projects():
+    try:
+        # Get all projects without filtering
+        all_projects = list(projects_collection.find())
+
+        # Convert ObjectIds to strings for JSON serialization
+        for project in all_projects:
+            project["_id"] = str(project["_id"])
+            project["created_by"] = str(project["created_by"])
+
+            if "created_at" in project:
+                project["created_at"] = project["created_at"].isoformat()
+            if "updated_at" in project:
+                project["updated_at"] = project["updated_at"].isoformat()
+
+        return (
+            jsonify({"total_count": len(all_projects), "projects": all_projects}),
+            200,
+        )
+
+    except Exception as e:
+        return jsonify({"message": "Debug endpoint error"}), 500
+
+
+@app.route("/projects/<project_id>", methods=["DELETE"])
+@jwt_required()
+def delete_project(project_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Verify project exists and user has access
+        project = projects_collection.find_one({"_id": ObjectId(project_id)})
+        if not project:
+            return jsonify({"message": "Project not found"}), 404
+
+        if project["created_by"] != user["_id"]:
+            return jsonify({"message": "Unauthorized"}), 403
+
+        # Delete the project
+        projects_collection.delete_one({"_id": ObjectId(project_id)})
+        return jsonify({"message": "Project deleted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"message": "Failed to delete project"}), 500
+
+
+@app.route("/projects/<project_id>", methods=["PUT"])
+@jwt_required()
+def update_project(project_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Verify project exists and user has access
+        project = projects_collection.find_one({"_id": ObjectId(project_id)})
+        if not project:
+            return jsonify({"message": "Project not found"}), 404
+
+        if project["created_by"] != user["_id"]:
+            return jsonify({"message": "Unauthorized"}), 403
+
+        # Update the project
+        data = request.get_json()
+        projects_collection.update_one({"_id": ObjectId(project_id)}, {"$set": data})
+        return jsonify({"message": "Project updated successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"message": "Failed to update project"}), 500
+
+
+def shutdown_server():
+    func = request.environ.get("werkzeug.server.shutdown")
+    if func is None:
+        raise RuntimeError("Not running with the Werkzeug Server")
+    func()
+
+
+@app.route("/shutdown", methods=["POST"])
+def shutdown():
+    shutdown_server()
+    return "Server shutting down..."
+
+
+def handle_exit(*args):
+    shutdown_server()
+
+
+atexit.register(handle_exit)
+signal.signal(signal.SIGTERM, handle_exit)
+signal.signal(signal.SIGINT, handle_exit)
+
+
+# Mentorship routes
+@app.route("/mentorship/request", methods=["POST"])
+@jwt_required()
+def create_mentorship_request():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        data = request.get_json()
+
+        print(f"Creating request for user: {user['_id']}")  # Debug log
+        print(f"Request data: {data}")  # Debug log
+
+        data["student_id"] = str(user["_id"])
+        request_id = MentorshipRequest.create(data)
+
+        print(f"Request created with ID: {request_id}")  # Debug log
+
+        return (
+            jsonify({"message": "Request created successfully", "id": request_id}),
+            201,
+        )
+    except Exception as e:
+        print(f"Error creating request: {str(e)}")  # Debug log
+        return jsonify({"message": str(e)}), 500
+
+
+@app.route("/mentorship/requests", methods=["GET"])
+@jwt_required()
+def get_mentorship_requests():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        print(f"Fetching requests for user: {user['_id']}")  # Debug log
+
+        if user["role"] == "student":
+            requests = MentorshipRequest.get_student_requests(str(user["_id"]))
+        else:
+            requests = MentorshipRequest.get_mentor_requests(str(user["_id"]))
+
+        print(f"Found {len(requests)} requests")  # Debug log
+        return jsonify(requests), 200
+    except Exception as e:
+        print(f"Error getting requests: {str(e)}")  # Debug log
+        return jsonify({"message": str(e)}), 500
+
+
+# Collaboration routes
+@app.route("/collaborations/explore", methods=["GET"])
+@jwt_required()
+def explore_projects():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Get query parameters for filtering
+        dept = request.args.get("dept")
+        tech = request.args.get("tech")
+
+        # Build query to exclude user's own projects
+        query = {
+            "created_by": {
+                "$ne": str(user["_id"])  # Convert ObjectId to string for comparison
+            }
+        }
+
+        # Add additional filters if provided
+        if dept:
+            query["dept"] = dept
+        if tech:
+            query["tech_stack"] = tech
+
+        print(f"Query: {query}")  # Debug log
+        print(f"Current user ID: {user['_id']}")  # Debug log
+
+        # Get projects from database
+        projects = list(projects_collection.find(query))
+        print(f"Found {len(projects)} projects")  # Debug log
+
+        # Format projects for response
+        formatted_projects = []
+        for project in projects:
+            # Skip if project belongs to current user (double-check)
+            if str(project["created_by"]) == str(user["_id"]):
+                continue
+
+            # Convert ObjectId to string
+            project["_id"] = str(project["_id"])
+            project["created_by"] = str(project["created_by"])
+
+            # Get creator details
+            creator = users_collection.find_one(
+                {"_id": ObjectId(project["created_by"])}
             )
+            if creator:
+                project["creator"] = {
+                    "name": creator["name"],
+                    "dept": creator["dept"],
+                    "_id": str(creator["_id"]),
+                }
 
-            if not has_permission:
-                return (
-                    jsonify(
-                        {
-                            "message": "Permission denied",
-                            "user_role": user_role,
-                            "required_roles": ["staff", "alumni"],
-                        }
-                    ),
-                    403,
+            formatted_projects.append(project)
+
+        print(f"Returning {len(formatted_projects)} formatted projects")  # Debug log
+        return jsonify(formatted_projects), 200
+
+    except Exception as e:
+        print(f"Error in explore_projects: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+
+@app.route("/collaborations/request", methods=["POST"])
+@jwt_required()
+def create_collaboration_request():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        data = request.get_json()
+
+        # Get project details to get owner_id
+        project = projects_collection.find_one({"_id": ObjectId(data["project_id"])})
+        if not project:
+            return jsonify({"message": "Project not found"}), 404
+
+        # Create collaboration request
+        request_data = {
+            "project_id": data["project_id"],
+            "student_id": str(user["_id"]),
+            "project_owner_id": project["created_by"],
+            "message": data["message"],
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+
+        collaboration_requests.insert_one(request_data)
+        return jsonify({"message": "Request sent successfully"}), 201
+
+    except Exception as e:
+        print(f"Error creating collaboration request: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+
+@app.route("/collaborations/requests", methods=["GET"])
+@jwt_required()
+def get_collaboration_requests():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Get only requests where user is project owner (incoming requests)
+        # Use $or to match both string and ObjectId formats
+        requests = list(
+            collaboration_requests.find(
+                {
+                    "project_owner_id": {
+                        "$in": [
+                            str(user["_id"]),  # Match string format
+                            ObjectId(str(user["_id"])),  # Match ObjectId format
+                        ]
+                    }
+                }
+            )
+        )
+
+        print(f"User ID: {user['_id']}")  # Debug log
+        print(f"Found requests: {requests}")  # Debug log
+
+        formatted_requests = []
+        for req in requests:
+            # Get project details
+            project = projects_collection.find_one({"_id": ObjectId(req["project_id"])})
+            if project:
+                # Get student details (requester)
+                student = users_collection.find_one(
+                    {"_id": ObjectId(req["student_id"])}
+                    if not isinstance(req["student_id"], ObjectId)
+                    else {"_id": req["student_id"]}
                 )
 
-            data = request.form.to_dict()
-            logging.info(f"Creating news/event with data: {data}")
+                if student:
+                    formatted_request = {
+                        "_id": str(req["_id"]),
+                        "status": req["status"],
+                        "message": req["message"],
+                        "created_at": req["created_at"],
+                        "updated_at": req.get("updated_at"),
+                        "project": {
+                            "_id": str(project["_id"]),
+                            "title": project["title"],
+                            "abstract": project["abstract"],
+                            "tech_stack": project.get("tech_stack", []),
+                        },
+                        "student": {
+                            "_id": str(student["_id"]),
+                            "name": student["name"],
+                            "dept": student["dept"],
+                        },
+                    }
+                    formatted_requests.append(formatted_request)
 
-            image_path = None
-            if "image" in request.files:
-                image = request.files["image"]
-                if image.filename != "":
-                    filename = secure_filename(image.filename)
-                    image_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-                    image.save(image_path)
-                    logging.info(f"Saved image to: {image_path}")
-
-            result = NewsEventModel.create(data, str(user["_id"]), image_path)
-            logging.info(f"Created news/event with ID: {result}")
-            return jsonify({"id": result}), 201
+        print(f"Returning {len(formatted_requests)} incoming requests")  # Debug log
+        return jsonify(formatted_requests), 200
 
     except Exception as e:
-        logging.error(f"Error processing request: {str(e)}")
-        return jsonify({"message": str(e)}), 400
+        print(f"Error getting collaboration requests: {str(e)}")
+        return jsonify({"message": str(e)}), 500
 
 
-@app.route("/api/news-events/<id>", methods=["GET", "PUT", "DELETE"])
+@app.route("/collaborations/request/<request_id>", methods=["PUT"])
 @jwt_required()
-def handle_single_news_event(id):
+def update_collaboration_request(request_id):
     try:
-        verify_jwt_in_request()
-        user_email = get_jwt_identity()
-        user = User.find_by_email(user_email)
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        data = request.get_json()
 
-        if request.method == "GET":
-            result = NewsEventModel.get_by_id(id)
-            if not result:
-                return jsonify({"message": "Not found"}), 404
-            return jsonify(result), 200
+        print(
+            f"Updating request {request_id} with status {data['status']}"
+        )  # Debug log
 
-        # Check if user has permission to modify (staff or alumni)
-        if user["role"] not in ["staff", "alumni"]:
-            return jsonify({"message": "Permission denied"}), 403
+        # Verify the request exists
+        collab_request = collaboration_requests.find_one({"_id": ObjectId(request_id)})
 
-        if request.method == "PUT":
-            data = request.get_json()
-            result = NewsEventModel.update(id, data)
-            return jsonify({"success": result}), 200
+        if not collab_request:
+            print(f"Request {request_id} not found")  # Debug log
+            return jsonify({"message": "Request not found"}), 404
 
-        elif request.method == "DELETE":
-            result = NewsEventModel.delete(id)
-            return jsonify({"success": result}), 200
+        # Get project and print debug info
+        project = projects_collection.find_one(
+            {"_id": ObjectId(collab_request["project_id"])}
+        )
+
+        print(f"Project created_by: {project['created_by']}")  # Debug log
+        print(f"Current user ID: {user['_id']}")  # Debug log
+        print(f"Current user ID (str): {str(user['_id'])}")  # Debug log
+
+        # Verify user owns the project
+        if str(project["created_by"]) != str(user["_id"]):
+            print("User is not the project owner")  # Debug log
+            return jsonify({"message": "Not authorized"}), 403
+
+        # Update request status
+        collaboration_requests.update_one(
+            {"_id": ObjectId(request_id)},
+            {
+                "$set": {
+                    "status": data["status"],
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
+        )
+
+        # If accepted, add collaborator to project
+        if data["status"] == "accepted":
+            # Get student details for the collaborator
+            student = users_collection.find_one(
+                {"_id": ObjectId(collab_request["student_id"])}
+            )
+
+            if student:
+                projects_collection.update_one(
+                    {"_id": ObjectId(collab_request["project_id"])},
+                    {
+                        "$addToSet": {
+                            "collaborators": {
+                                "id": str(student["_id"]),
+                                "name": student["name"],
+                                "dept": student["dept"],
+                                "joined_at": datetime.now(timezone.utc),
+                            }
+                        }
+                    },
+                )
+                print(f"Added collaborator {student['name']} to project")  # Debug log
+
+        return (
+            jsonify({"message": f"Request {data['status']}", "status": data["status"]}),
+            200,
+        )
 
     except Exception as e:
-        return jsonify({"message": str(e)}), 400
+        print(f"Error updating collaboration request: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+
+@app.route("/collaborations/request/<request_id>/message", methods=["POST"])
+@jwt_required()
+def send_collaboration_message(request_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        data = request.get_json()
+
+        collab_request = collaboration_requests.find_one({"_id": ObjectId(request_id)})
+        if not collab_request:
+            return jsonify({"message": "Request not found"}), 404
+
+        # Add message to request
+        collaboration_requests.update_one(
+            {"_id": ObjectId(request_id)},
+            {
+                "$push": {
+                    "messages": {
+                        "sender_id": str(user["_id"]),
+                        "content": data["message"],
+                        "sent_at": datetime.now(timezone.utc),
+                    }
+                }
+            },
+        )
+
+        return jsonify({"message": "Message sent"}), 200
+
+    except Exception as e:
+        print(f"Error sending message: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+
+@app.route("/collaborations/collaborated", methods=["GET"])
+@jwt_required()
+def get_collaborated_projects():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        user_id = str(user["_id"])
+
+        print(f"Looking for collaborations for user: {user_id}")  # Debug log
+
+        # Find all accepted collaboration requests where user is the student (not the owner)
+        collab_requests = list(
+            collaboration_requests.find(
+                {
+                    "$and": [
+                        {"status": "accepted"},
+                        # Only get requests where user is the student
+                        {
+                            "$or": [
+                                {"student_id": user_id},  # String format
+                                {"student_id": ObjectId(user_id)},  # ObjectId format
+                            ]
+                        },
+                        # Explicitly exclude where user is the project owner
+                        {
+                            "project_owner_id": {
+                                "$ne": user_id  # Compare with string format
+                            }
+                        },
+                    ]
+                }
+            )
+        )
+
+        print(f"Found {len(collab_requests)} accepted requests")  # Debug log
+        for req in collab_requests:
+            print(f"Request details:")
+            print(
+                f"- Student ID: {req.get('student_id')} ({type(req.get('student_id'))})"
+            )
+            print(
+                f"- Project Owner ID: {req.get('project_owner_id')} ({type(req.get('project_owner_id'))})"
+            )
+            print(f"- Project ID: {req.get('project_id')}")
+            print(f"- Status: {req.get('status')}")
+
+        if not collab_requests:
+            print("No collaboration requests found")
+            return jsonify([]), 200
+
+        # Get all project IDs from the requests
+        project_ids = [ObjectId(req["project_id"]) for req in collab_requests]
+
+        # Get all projects in one query
+        projects = list(projects_collection.find({"_id": {"$in": project_ids}}))
+        print(f"Found {len(projects)} projects")  # Debug log
+
+        # Get all owner IDs from the projects
+        owner_ids = [
+            (
+                ObjectId(project["created_by"])
+                if not isinstance(project["created_by"], ObjectId)
+                else project["created_by"]
+            )
+            for project in projects
+        ]
+
+        # Get all owners in one query
+        owners = {
+            str(owner["_id"]): owner
+            for owner in users_collection.find({"_id": {"$in": owner_ids}})
+        }
+
+        # Format the response
+        collaborated_projects = []
+        for project in projects:
+            owner = owners.get(str(project["created_by"]))
+            if owner:
+                # Find the corresponding request for this project
+                request = next(
+                    (
+                        req
+                        for req in collab_requests
+                        if req["project_id"] == str(project["_id"])
+                    ),
+                    None,
+                )
+
+                if request:
+                    print(f"Processing project: {project['title']}")  # Debug log
+                    formatted_project = {
+                        "_id": str(project["_id"]),
+                        "title": project["title"],
+                        "abstract": project["abstract"],
+                        "tech_stack": project.get("tech_stack", []),
+                        "owner": {
+                            "id": str(owner["_id"]),
+                            "name": owner["name"],
+                            "dept": owner["dept"],
+                        },
+                        "collaborators": [
+                            {
+                                "id": user_id,
+                                "name": user["name"],
+                                "dept": user["dept"],
+                                "joined_at": request["updated_at"],
+                            }
+                        ],
+                    }
+                    collaborated_projects.append(formatted_project)
+                    print(f"Added project: {project['title']}")  # Debug log
+
+        print(
+            f"Returning {len(collaborated_projects)} collaborated projects"
+        )  # Debug log
+        return jsonify(collaborated_projects), 200
+
+    except Exception as e:
+        print(f"Error getting collaborated projects: {str(e)}")
+        return jsonify({"message": str(e)}), 500
+
+
+@app.route("/collaborations/outgoing", methods=["GET"])
+@jwt_required()
+def get_outgoing_requests():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Get requests where user is the requester
+        requests = list(
+            collaboration_requests.find(
+                {"student_id": str(user["_id"])}  # Get my requests to other projects
+            )
+        )
+
+        formatted_requests = []
+        for req in requests:
+            # Get project details
+            project = projects_collection.find_one({"_id": ObjectId(req["project_id"])})
+            if project:
+                # Get project owner details
+                owner = users_collection.find_one(
+                    {"_id": ObjectId(project["created_by"])}
+                )
+
+                if owner:
+                    formatted_request = {
+                        "_id": str(req["_id"]),
+                        "status": req["status"],
+                        "message": req["message"],
+                        "created_at": req["created_at"],
+                        "updated_at": req.get("updated_at"),
+                        "project": {
+                            "_id": str(project["_id"]),
+                            "title": project["title"],
+                            "abstract": project["abstract"],
+                            "tech_stack": project.get("tech_stack", []),
+                            "owner_name": owner["name"],
+                            "owner_dept": owner["dept"],
+                        },
+                    }
+                    formatted_requests.append(formatted_request)
+
+        print(f"Returning {len(formatted_requests)} outgoing requests")  # Debug log
+        return jsonify(formatted_requests), 200
+
+    except Exception as e:
+        print(f"Error getting outgoing requests: {str(e)}")
+        return jsonify({"message": str(e)}), 500
 
 
 if __name__ == "__main__":
