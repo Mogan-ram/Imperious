@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from "../../../contexts/AuthContext";
 import { Link } from 'react-router-dom';
 import FeedCreate from '../FeedCreate/FeedCreate';
 import { Card, Button } from 'react-bootstrap';
 import axios from '../../../services/axios';
+import { toast } from 'react-toastify';
 
 const FeedList = () => {
     const [feeds, setFeeds] = useState([]);
@@ -25,20 +26,25 @@ const FeedList = () => {
     };
 
     const handleNewFeed = (newFeed) => {
-        setFeeds([newFeed, ...feeds]);
+        setFeeds([newFeed, ...feeds]);  // Add new feed to the *beginning* of the list
     };
+
 
     const handleDelete = async (feedId) => {
         if (window.confirm('Are you sure you want to delete this feed?')) {
             try {
                 await axios.delete(`/feeds/${feedId}`);
-                setFeeds(feeds.filter(feed => feed._id !== feedId));
+                // Update the state to remove the deleted feed
+                setFeeds(prevFeeds => prevFeeds.filter(feed => feed._id !== feedId));
+                toast.success("Feed successfully deleted!");
             } catch (error) {
                 console.error('Error deleting feed:', error);
-                alert('Failed to delete feed');
+                toast.error('Failed to delete feed. Please try again.'); // Use toast for consistent error messages
             }
         }
     };
+
+
 
     return (
         <div className="container-fluid">
@@ -79,13 +85,16 @@ const FeedList = () => {
                                 <Card.Body>
                                     <div className="d-flex justify-content-between align-items-start">
                                         <div>
-                                            <Card.Title>{feed.author.name}</Card.Title>
+                                            {/* Use optional chaining here */}
+                                            <Card.Title>{feed.author?.name || 'Unknown User'}</Card.Title>
                                             <Card.Text>{feed.content}</Card.Text>
                                             <small className="text-muted">
                                                 {new Date(feed.timestamp).toLocaleString()}
                                             </small>
                                         </div>
-                                        {(user.email === feed.author.email || user.role === 'staff') && (
+
+                                        {/* Check if the current user is the author or staff */}
+                                        {(user && (user.email === feed.author?.email || user.role === 'staff')) && (
                                             <Button
                                                 variant="danger"
                                                 size="sm"
@@ -131,4 +140,4 @@ const FeedList = () => {
     );
 };
 
-export default FeedList; 
+export default FeedList;

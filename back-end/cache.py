@@ -18,11 +18,13 @@ def get_cached_news_events(page=1, limit=10, type=None, sort_by="created_at", or
     """
     # Add debug logging
     logging.info(f"Cache request for {type} items")
+    print(f"Fetching news/events with type: {type}, page: {page}, limit: {limit}")
 
     # Get fresh data from database
     result = NewsEvent.get_all(page, limit, type, sort_by, order)
 
     # Add debug logging
     logging.info(f"Retrieved {len(result['items'])} items from database")
+    print(f"Fetched news/events: {result}")
 
     return result

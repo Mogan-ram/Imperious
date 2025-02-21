@@ -1,0 +1,51 @@
+/* src/components/Jobs/JobCard.css */
+.job-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 0.5rem;
+    /* Rounded corners */
+    border: 1px solid #ddd;
+    /* Subtle border */
+}
+
+.job-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    /* Slightly stronger shadow on hover */
+}
+
+.job-card .card-title {
+    font-size: 1.25rem;
+    /* Slightly larger title */
+    font-weight: 600;
+    /* Semibold title */
+    color: #0d6efd;
+    /* Bootstrap primary color */
+}
+
+.job-card .card-subtitle {
+    font-size: 1rem;
+    color: #6c757d;
+    /* Bootstrap muted text color */
+}
+
+.job-card .card-text {
+    color: #495057;
+    /* Slightly darker text for body */
+    margin-bottom: 0.5rem;
+    /* Space between text and tags */
+    line-height: 1.6;
+    /* Better line height for readability */
+}
+
+/* Style for the job type badges */
+.job-card .badge {
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+    /* Space between badges */
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+    text-transform: capitalize;
+    /* Consistent casing */
+
+}
