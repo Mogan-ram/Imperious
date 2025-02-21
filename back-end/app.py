@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, send_from_directory, current_app
-from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager,
     jwt_required,
@@ -8,17 +7,30 @@ from flask_jwt_extended import (
     create_refresh_token,
 )
 from auth import init_auth_routes, SECRET_KEY
-from models import Feed, User, NewsEvent, Project, MentorshipRequest, Collaboration
+from models import (
+    Feed,
+    User,
+    NewsEvent,
+    Project,
+    MentorshipRequest,
+    Collaboration,
+    job,
+    User,
+    Analytics,
+)
 from datetime import datetime, timedelta, timezone
+from flask_cors import CORS
 from cache import get_cached_news_events
 from werkzeug.utils import secure_filename
+from pymongo import MongoClient
+from bson import ObjectId
 import os
 import logging
 import bcrypt
-from pymongo import MongoClient
-from bson import ObjectId
 import atexit
 import signal
+import uuid
+from PIL import Image
 
 logging.basicConfig(level=logging.INFO)
 
@@ -41,6 +53,10 @@ CORS(
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 jwt = JWTManager(app)
+
+
+NEWS_EVENTS_UPLOAD_FOLDER = "uploads/news_events"
+app.config["NEWS_EVENTS_UPLOAD_FOLDER"] = NEWS_EVENTS_UPLOAD_FOLDER
 
 # File upload configuration
 UPLOAD_FOLDER = "uploads/projects"
@@ -205,7 +221,7 @@ def handle_feeds():
 
     elif request.method == "POST":
         content = request.json.get("content")
-        feed_id = Feed.create_feed(current_user, content)
+        feed_id = User.create_feed(current_user, content)
         return jsonify({"id": feed_id}), 201
 
 
@@ -278,11 +294,53 @@ def handle_news_events():
                 file = request.files["image"]
                 if file and allowed_file(file.filename):
                     filename = secure_filename(file.filename)
-                    file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-                    data["image_url"] = f"/uploads/{filename}"
+                    # Generate unique filename: UUID + original extension
+                    name, ext = os.path.splitext(filename)
+                    unique_filename = str(uuid.uuid4()) + ext
+
+                    filepath = os.path.join(
+                        app.config["NEWS_EVENTS_UPLOAD_FOLDER"], unique_filename
+                    )
+                    # Ensure directory exists:
+                    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+                try:
+                    # --- Image Processing (using Pillow) ---
+                    img = Image.open(file)
+
+                    # Resize (example - adjust as needed)
+                    img.thumbnail(
+                        (800, 800)
+                    )  # Resize to max 800x800, preserving aspect ratio
+
+                    # Convert to JPEG (optional, but good for consistency)
+                    if img.mode in ("RGBA", "P"):  # Handle transparency
+                        img = img.convert("RGB")
+                    img.save(
+                        filepath, "JPEG", optimize=True, quality=85
+                    )  # Save as JPEG, with optimization
+
+                    data["image_url"] = f"/uploads/news_events/{unique_filename}"
+
+                except IOError:
+                    # Handle image processing errors
+                    app.logger.exception("Error processing image:")
+                    return (
+                        jsonify({"message": "Could not process the uploaded image."}),
+                        400,
+                    )
+                except Exception as e:
+                    app.logger.exception("Error saving image:")
+                    return jsonify({"message": "Error saving image"}), 500
+            else:
+                return (
+                    jsonify({"message": "Invalid file type"}),
+                    400,
+                )  # if invalid file type
 
             # Create news/event with author_id
             result = NewsEvent.create(data, author_id=str(user["_id"]))
+            get_cached_news_events.cache_clear()
             return jsonify({"id": str(result)}), 201
 
         except Exception as e:
@@ -314,10 +372,26 @@ def handle_single_news_event(id):
                 return jsonify({"message": "Permission denied"}), 403
 
             data = request.get_json()
-            NewsEvent.update(id, data)
-            return jsonify({"message": "News event updated successfully"}), 200
+
+            if "author_id" in data:
+                del data["author_id"]
+            if NewsEvent.update(id, data):
+
+                get_cached_news_events.cache_clear()  # Clear the cache after updating
+                return jsonify({"message": "News event updated successfully"}), 200
+            else:
+                return (
+                    jsonify({"message": "News event not found or not modified."}),
+                    404,
+                )
         except Exception as e:
-            return jsonify({"message": str(e)}), 400
+            app.logger.exception(f"Error updating news/event with id {id}:")
+            return (
+                jsonify(
+                    {"message": "An error occurred while updating the news/event."}
+                ),
+                500,
+            )
     elif request.method == "DELETE":
         try:
             current_user = get_jwt_identity()
@@ -329,10 +403,55 @@ def handle_single_news_event(id):
             if user["role"].lower() not in ["staff", "alumni"]:
                 return jsonify({"message": "Permission denied"}), 403
 
-            NewsEvent.delete(id)
-            return jsonify({"message": "News event deleted successfully"}), 200
+            news_event = NewsEvent.get_by_id(
+                id
+            )  # Get the news event *before* authorization checks
+
+            if not news_event:
+                return jsonify({"message": "News/event not found"}), 404
+            # Authorization checks.
+            if user["role"].lower() == "staff" and news_event["author_id"] != str(
+                user["_id"]
+            ):
+                return (
+                    jsonify({"message": "Unauthorized"}),
+                    403,
+                )  # staff can delete news/event created by them
+            if user["role"].lower() == "alumni" and news_event["author_id"] != str(
+                user["_id"]
+            ):
+                return (
+                    jsonify({"message": "Unauthorized"}),
+                    403,
+                )  # Alumni can delete news/event created by them.
+
+            # Delete associated image file (if it exists)
+            if news_event.get("image_url"):
+                image_path = os.path.join(
+                    app.root_path, news_event["image_url"][1:]
+                )  # Remove leading /
+                if os.path.exists(image_path):
+                    try:
+                        os.remove(image_path)
+                    except OSError as e:
+                        app.logger.error(
+                            f"Error deleting image file: {e}"
+                        )  # log if an error occur
+
+            if NewsEvent.delete(id):
+                get_cached_news_events.cache_clear()  # Clear the cache after deleting
+                return jsonify({"message": "News event deleted successfully"}), 200
+            else:
+                return jsonify({"message": "new event not found or not modified."}), 404
+
         except Exception as e:
-            return jsonify({"message": str(e)}), 400
+            app.logger.exception(f"Error deleting news/event with id {id}:")
+            return (
+                jsonify(
+                    {"message": "An error occurred while deleting the news/event."}
+                ),
+                500,
+            )
 
 
 # Project routes
@@ -454,6 +573,14 @@ def get_project(project_id):
 def serve_project_file(filename):
     try:
         return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    except Exception as e:
+        return jsonify({"message": "File not found"}), 404
+
+
+@app.route("/uploads/news_events/<path:filename>")
+def serve_news_event_file(filename):
+    try:
+        return send_from_directory(app.config["NEWS_EVENTS_UPLOAD_FOLDER"], filename)
     except Exception as e:
         return jsonify({"message": "File not found"}), 404
 
@@ -603,18 +730,108 @@ def get_mentorship_requests():
         current_user = get_jwt_identity()
         user = User.find_by_email(current_user)
 
-        print(f"Fetching requests for user: {user['_id']}")  # Debug log
+        # print(f"Fetching requests for user: {user['_id']}")  # Debug log
 
         if user["role"] == "student":
             requests = MentorshipRequest.get_student_requests(str(user["_id"]))
         else:
             requests = MentorshipRequest.get_mentor_requests(str(user["_id"]))
 
-        print(f"Found {len(requests)} requests")  # Debug log
+        # print(f"Found {len(requests)} requests")  # Debug log
         return jsonify(requests), 200
     except Exception as e:
         print(f"Error getting requests: {str(e)}")  # Debug log
         return jsonify({"message": str(e)}), 500
+
+
+@app.route("/mentorship/request/<request_id>", methods=["PUT"])
+@jwt_required()
+def update_mentorship_request(request_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Basic authorization: Only alumni can update requests
+        if user["role"].lower() != "alumni":
+            return jsonify({"message": "Unauthorized"}), 403
+
+        data = request.get_json()
+        status = data.get("status")
+
+        if not status or status not in ["accepted", "rejected"]:
+            return jsonify({"message": "Invalid status"}), 400
+
+        # Update the request, setting mentor_id if accepted
+        if status == "accepted":
+            success = MentorshipRequest.update_request(
+                request_id, status, mentor_id=str(user["_id"])
+            )  # Pass user ID and convert to string
+        else:
+            success = MentorshipRequest.update_request(
+                request_id, status
+            )  # only status update
+
+        if success:
+            return jsonify({"message": f"Request {status} successfully"}), 200
+        else:
+            return (
+                jsonify({"message": "Request not found or not modified"}),
+                404,
+            )  # Or 500, depending on your preference
+
+    except Exception as e:
+        print(f"Error updating mentorship request: {str(e)}")
+        return jsonify({"message": "An error occurred while updating the request"}), 500
+
+
+# New Route: Ignore a request
+@app.route("/mentorship/request/<request_id>/ignore", methods=["PUT"])
+@jwt_required()
+def ignore_mentorship_request(request_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Authorization: Only alumni can ignore
+        if user["role"].lower() != "alumni":
+            return jsonify({"message": "Unauthorized"}), 403
+
+        success = MentorshipRequest.ignore_request(
+            request_id, user["email"]
+        )  # Pass user's email
+
+        if success:
+            return jsonify({"message": "Request ignored"}), 200
+        else:
+            return (
+                jsonify({"message": "Request not found or already ignored"}),
+                404,
+            )  # or 500
+
+    except Exception as e:
+        print(f"Error ignoring mentorship request: {str(e)}")
+        return jsonify({"message": "An error occurred while ignoring the request"}), 500
+
+
+@app.route("/mentorship/my_mentees", methods=["GET"])
+@jwt_required()
+def get_mentees():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Authorization: Only alumni can access this
+        if user["role"].lower() != "alumni":
+            return jsonify({"message": "Unauthorized"}), 403
+
+        mentees_data = MentorshipRequest.get_mentees_by_mentor(
+            user["email"]
+        )  # Pass email
+        return jsonify(mentees_data), 200
+
+    except Exception as e:
+        print(f"Error getting mentees: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching mentees"}), 500
 
 
 # Collaboration routes
@@ -1059,6 +1276,136 @@ def get_outgoing_requests():
     except Exception as e:
         print(f"Error getting outgoing requests: {str(e)}")
         return jsonify({"message": str(e)}), 500
+
+
+# app.py (Updated Job Routes)
+@app.route("/jobs", methods=["GET", "POST"])
+@jwt_required(optional=True)
+def handle_jobs():
+    if request.method == "GET":
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 10))
+        search_term = request.args.get("search", None)  # Get search term
+        location = request.args.get("location", None)  # Get location
+        job_type = request.args.get("job_type", None)  # Get job type
+        sort_by = request.args.get("sort_by", "created_at")  # Get sorting value
+        sort_order = request.args.get("sort_order", "-1")  # Get sorting order
+
+        jobs_data = job.get_all(
+            page, limit, search_term, location, job_type, sort_by, sort_order
+        )
+        return jsonify(jobs_data), 200
+
+    elif request.method == "POST":
+        current_user = get_jwt_identity()
+        if not current_user:
+            return jsonify({"message": "Unauthorized"}), 401
+
+        user = User.find_by_email(current_user)
+        if user["role"].lower() != "alumni":
+            return jsonify({"message": "Only alumni can post jobs"}), 403
+
+        data = request.json
+        # Basic validation (add more as needed)
+        required_fields = [
+            "title",
+            "company",
+            "location",
+            "description",
+            "job_type",
+            "requirements",
+        ]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"message": f"{field} is required"}), 400
+        if not isinstance(data["job_type"], list):
+            return jsonify({"message": "job_type must be a list"}), 400
+
+        data["posted_by"] = str(user["_id"])  # Store the user's ID
+
+        job_id = job.create(data)
+        return jsonify({"id": job_id}), 201
+
+
+@app.route("/jobs/<id>", methods=["GET", "PUT", "DELETE"])
+@jwt_required(optional=True)
+def handle_single_job(id):
+    current_user = get_jwt_identity()  # Get user even for GET (for authorization later)
+    user = User.find_by_email(current_user) if current_user else None
+
+    retrieved_job = job.get_by_id(id)  # using get_by_id to fetch all post details
+    if not retrieved_job:
+        return jsonify({"message": "Job not found"}), 404
+
+    if request.method == "GET":
+        return jsonify(retrieved_job), 200
+
+    elif request.method == "PUT":
+        if (
+            not user
+            or user["role"].lower() != "alumni"
+            or str(user["_id"]) != retrieved_job["posted_by"]
+        ):
+            return jsonify({"message": "Unauthorized"}), 403
+
+        data = request.json
+        if job.update(id, data):  # call the method from models
+            return jsonify({"message": "Job updated successfully"}), 200
+        else:
+            return jsonify({"message": "Job not found or not modified."}), 400
+
+    elif request.method == "DELETE":
+        if (
+            not user
+            or (user["role"].lower() != "alumni" and user["role"].lower() != "staff")
+            or (
+                user["role"].lower() == "alumni"
+                and str(user["_id"]) != retrieved_job["posted_by"]
+            )
+        ):
+            return jsonify({"message": "Unauthorized"}), 403
+
+        if job.delete(id):  # call the method from models
+            return jsonify({"message": "Job deleted successfully"}), 200
+        else:
+            return jsonify({"message": "Job not found."}), 404
+
+
+# Add this to your app.py
+
+
+@app.route("/analytics", methods=["GET"])
+@jwt_required()
+def get_analytics():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Authorization: Only staff/admin can access analytics
+        if user["role"].lower() not in ["staff", "admin"]:
+            return jsonify({"message": "Unauthorized"}), 403
+
+        # --- Aggregate Data ---  Use the class methods!
+        analytics_data = {
+            "user_counts": Analytics.get_user_counts_by_role(),
+            "new_registrations": Analytics.get_new_user_registrations(),
+            "active_users": Analytics.get_active_users(),
+            "student_departments": Analytics.get_department_distribution("student"),
+            "alumni_departments": Analytics.get_department_distribution("alumni"),
+            "student_batches": Analytics.get_batch_year_distribution("student"),
+            "alumni_batches": Analytics.get_batch_year_distribution("alumni"),
+            "request_status_breakdown": Analytics.get_mentorship_request_status_breakdown(),
+            "total_requests": Analytics.get_total_mentorship_requests(),
+            "total_projects": Analytics.get_total_projects_created(),
+            "project_status_breakdown": Analytics.get_project_status_breakdown(),
+            "top_technologies": Analytics.get_top_technologies(),
+        }
+
+        return jsonify(analytics_data), 200
+
+    except Exception as e:
+        print(f"Error in analytics route: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching analytics"}), 500
 
 
 if __name__ == "__main__":

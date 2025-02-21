@@ -1,10 +1,11 @@
 from pymongo import MongoClient, DESCENDING
 from bson.objectid import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
+from werkzeug.utils import secure_filename
 import logging
 import os
-from werkzeug.utils import secure_filename
 import bcrypt
+
 
 # Configure the MongoDB connection
 try:
@@ -20,6 +21,7 @@ try:
     mentorship_requests = db["mentorship_requests"]
     pending_staff_collection = db["pending_staff_registrations"]
     collaboration_requests = db["collaboration_requests"]
+    jobs_collection = db["jobs"]
     client.admin.command("ping")
     print("Connected successfully to MongoDB")
 except Exception as e:
@@ -229,6 +231,19 @@ class Feed:
         for feed in feeds:
             # Get author details from users collection
             author = users_collection.find_one({"email": feed["author"]})
+
+            if author:
+                author_data = {
+                    "email": author["email"],
+                    "name": author["name"],
+                }
+            else:
+                # If author is not found, provide default values.  IMPORTANT!
+                author_data = {
+                    "email": "unknown@example.com",  # Or some other placeholder
+                    "name": "Unknown User",  # Or "Deleted User", etc.
+                }
+
             feed_data = {
                 "_id": str(feed["_id"]),
                 "content": feed["content"],
@@ -287,14 +302,15 @@ class NewsEvent:
             raise Exception(f"Failed to create news/event: {str(e)}")
 
     @staticmethod
-    def get_all(page=1, limit=10, type=None, sort_by="created_at", order=-1):
+    def get_all(page=1, limit=10, type="all", sort_by="created_at", order=-1):
         skip = (page - 1) * limit
         query = {}
-        if type:
+        if type.lower() != "all":
             query["type"] = type.lower()  # Ensure case-insensitive comparison
 
         # Add debug logging
         logging.info(f"MongoDB query: {query}")
+        print(f"Querying database with type: {type}, page: {page}, limit: {limit}")
 
         total = news_events_collection.count_documents(query)
         items = list(
@@ -304,17 +320,34 @@ class NewsEvent:
             .limit(limit)
         )
 
-        # Add debug logging
-        logging.info(f"Found {len(items)} items in database")
-
         # Convert ObjectId to string for JSON serialization
         for item in items:
             item["_id"] = str(item["_id"])
-            if "author_id" in item:
-                item["author_id"] = str(item["author_id"])
-            # Ensure dates are properly formatted
+            # Get the author (User) from the users_collection
+            author = users_collection.find_one({"_id": ObjectId(item["author_id"])})
+            if author:
+                item["author"] = {
+                    "name": author["name"],
+                    "email": author["email"],
+                    "role": author["role"],
+                    "dept": author.get("dept"),  # Could be None
+                    "batch": author.get("batch"),  # Could be None
+                    "staff_id": author.get("staff_id"),  # Could be None
+                }
+            else:
+                item["author"] = {
+                    "name": "Unknown",
+                    "email": "Unknown",
+                }  # Handle case where author is not found.
+
             if "event_date" in item and item["event_date"]:
-                item["event_date"] = item["event_date"].isoformat()
+                # If event_date is already a string, don't try to process it
+                if isinstance(item["event_date"], str):
+                    pass  # NOOP - its allready string
+                elif isinstance(item["event_date"], datetime):
+                    item["event_date"] = item[
+                        "event_date"
+                    ].isoformat()  # it will convert the datetime obj into iso format
             if "created_at" in item:
                 item["created_at"] = item["created_at"].isoformat()
 
@@ -326,10 +359,30 @@ class NewsEvent:
             item = news_events_collection.find_one({"_id": ObjectId(id)})
             if item:
                 item["_id"] = str(item["_id"])
-                if "author_id" in item:
-                    item["author_id"] = str(item["author_id"])
-            return item
-        except:
+                author = users_collection.find_one({"_id": ObjectId(item["author_id"])})
+                if author:
+                    item["author"] = {
+                        "name": author["name"],
+                        "email": author["email"],
+                        "role": author["role"],
+                        "dept": author.get("dept"),
+                        "batch": author.get("batch"),
+                        "staff_id": author.get("staff_id"),
+                    }
+                else:
+                    item["author"] = {"name": "Unknown", "email": "Unknown"}
+                # --- Date Formatting (Backend - consistently to ISO format) ---
+                if "event_date" in item and item["event_date"]:
+                    # If event_date is already a string, don't try to process it
+                    if isinstance(item["event_date"], str):
+                        pass  # NOOP - its allready string
+                    elif isinstance(item["event_date"], datetime):
+                        item["event_date"] = item["event_date"].isoformat()
+                if "created_at" in item:
+                    item["created_at"] = item["created_at"].isoformat()
+                return item
+        except Exception as e:
+            print(f"An error in models.py {e}")
             return None
 
     @staticmethod
@@ -347,7 +400,8 @@ class NewsEvent:
         try:
             result = news_events_collection.delete_one({"_id": ObjectId(id)})
             return result.deleted_count > 0
-        except:
+        except Exception as e:  # Always catch specific exceptions if possible.
+            print(f"Error in NewsEvent.delete: {e}")  # Better logging
             return False
 
 
@@ -569,7 +623,7 @@ class MentorshipRequest:
         self.project_id = project_id
         self.message = message
         self.status = status
-        self.mentor_id = None
+        self.mentor_id = None  # You don't use this on creation.
         self.created_at = datetime.utcnow()
 
     @staticmethod
@@ -582,6 +636,8 @@ class MentorshipRequest:
                 "message": data["message"],
                 "status": "pending",
                 "created_at": datetime.utcnow(),
+                "mentor_id": None,  # Initialize as None
+                "ignored_by": [],
             }
             result = mentorship_requests.insert_one(request)
             print("Insert result:", result.inserted_id)  # Debug log
@@ -610,20 +666,213 @@ class MentorshipRequest:
                         "title": project["title"],
                         "abstract": project["abstract"],
                         "_id": str(project["_id"]),
+                        "created_by": str(project["created_by"]),  # Add this!
                     }
+                    owner = users_collection.find_one(
+                        {"_id": Project.to_object_id(project["created_by"])}
+                    )
+                    if owner:
+                        request["project"]["owner_name"] = owner.get("name")
+                        request["project"]["owner_dept"] = owner.get("dept")
 
                 # Convert ObjectIds to strings
                 request["_id"] = str(request["_id"])
                 request["student_id"] = str(request["student_id"])
                 request["project_id"] = str(request["project_id"])
-                if "mentor_id" in request:
+                if (
+                    "mentor_id" in request and request["mentor_id"]
+                ):  # Check for existence
                     request["mentor_id"] = str(request["mentor_id"])
+
+                if "created_at" in request:  # Convert date here
+                    request["created_at"] = request["created_at"].isoformat()
 
             print("Enriched requests:", requests)  # Debug log
             return requests
         except Exception as e:
             print(f"Error in get_student_requests: {str(e)}")
             raise Exception(f"Error getting student requests: {str(e)}")
+
+    @staticmethod
+    def get_mentor_requests(mentor_id):
+        try:
+            # Fetch ALL pending mentorship requests.  NO filtering by mentor_id or project owner.
+            requests = list(mentorship_requests.find())
+
+            # Enrich request data with project and student details
+            for request in requests:
+                request["_id"] = str(request["_id"])
+                request["student_id"] = str(request["student_id"])
+                request["project_id"] = str(request["project_id"])
+
+                if "mentor_id" in request and request["mentor_id"]:
+                    request["mentor_id"] = str(request["mentor_id"])  # handle exception
+
+                project = projects_collection.find_one(
+                    {"_id": ObjectId(request["project_id"])}
+                )
+                if project:
+                    request["project"] = {
+                        "_id": str(project["_id"]),  # Convert to string
+                        "title": project["title"],
+                        "abstract": project["abstract"],
+                        "created_by": str(
+                            project["created_by"]
+                        ),  # Include creator, and convert to string!
+                    }
+                    # find the owner of the project using user id.
+                    owner = users_collection.find_one(
+                        {"_id": ObjectId(project["created_by"])}
+                    )
+                    if owner:
+                        request["project"]["owner_name"] = owner.get("name")
+                        request["project"]["owner_dept"] = owner.get("dept")
+
+                student = users_collection.find_one(
+                    {"_id": ObjectId(request["student_id"])}
+                )
+                if student:
+                    request["student"] = {
+                        "_id": str(student["_id"]),  # Convert to string
+                        "name": student["name"],
+                        "dept": student["dept"],
+                    }
+                if "created_at" in request:
+                    request["created_at"] = request["created_at"].isoformat()
+
+            return requests
+
+        except Exception as e:
+            print(f"Error in get_mentor_requests: {str(e)}")
+            return []
+
+    @staticmethod
+    def update_request(request_id, status, mentor_id=None):
+        """Updates the status (and optionally, mentor_id) of a request."""
+        try:
+            update_data = {"status": status}
+            if mentor_id:
+                update_data["mentor_id"] = str(mentor_id)  # Store as string
+
+            result = mentorship_requests.update_one(
+                {"_id": ObjectId(request_id)},  # Use helper function
+                {"$set": update_data},
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error updating mentorship request: {e}")
+            return False
+
+    @staticmethod
+    def ignore_request(request_id, user_email):
+        """Adds the user's email to the ignored_by array."""
+        try:
+            result = mentorship_requests.update_one(
+                {"_id": ObjectId(request_id)},  # Use helper function
+                {"$addToSet": {"ignored_by": user_email}},  # Use $addToSet
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error ignoring mentorship request: {e}")
+            return False
+
+    @staticmethod
+    def get_mentees_by_mentor(mentor_email):
+        """
+        Fetches all accepted mentorship requests for a given mentor,
+        along with project and student details.
+        """
+        try:
+            # Find accepted requests where mentor_id matches the mentor's email.
+            accepted_requests = list(
+                mentorship_requests.find(
+                    {
+                        "status": "accepted",
+                        "mentor_id": mentor_email,  # Use email for now (temporary)
+                    }
+                )
+            )
+
+            projects_data = []
+            for request in accepted_requests:
+                project = projects_collection.find_one(
+                    {"_id": Project.to_object_id(request["project_id"])}
+                )
+                if project:
+                    project_data = {
+                        "_id": str(project["_id"]),  # String ID
+                        "title": project["title"],
+                        "students": [],  # List of students
+                    }
+
+                    # Get the project creator (Lead)
+                    creator = users_collection.find_one(
+                        {"_id": User.to_object_id(project["created_by"])}
+                    )
+                    if creator:
+                        project_data["students"].append(
+                            {
+                                "id": str(creator["_id"]),  # String ID
+                                "name": creator["name"],
+                                "dept": creator["dept"],
+                                "batch": creator.get("batch"),  # Include batch
+                                "email": creator.get("email"),  # Include email
+                                "role": "Lead",  # Indicate this is the project lead
+                            }
+                        )
+
+                    # Get collaborators (if any)
+                    if "collaborators" in project:
+                        for collaborator in project["collaborators"]:
+                            if "id" in collaborator:  # Check if 'id' key exists
+                                try:
+                                    collab_user = users_collection.find_one(
+                                        {"_id": User.to_object_id(collaborator["id"])}
+                                    )
+                                    if collab_user:
+                                        project_data["students"].append(
+                                            {
+                                                "id": str(
+                                                    collab_user["_id"]
+                                                ),  # String ID
+                                                "name": collab_user["name"],
+                                                "dept": collab_user["dept"],
+                                                "batch": collab_user.get(
+                                                    "batch"
+                                                ),  # Include batch
+                                                "email": collab_user.get(
+                                                    "email"
+                                                ),  # include email
+                                                "role": "Collaborator",
+                                            }
+                                        )
+                                except (
+                                    Exception
+                                ) as e:  # added to prevent app crash if user not exist
+                                    print(f"invalid user {e}")
+                                    continue  # if object id is invalid
+
+                    projects_data.append(project_data)
+
+            return projects_data
+
+        except Exception as e:
+            print(f"Error in get_mentees_by_mentor: {str(e)}")
+            return []
+
+    # models.py file inside models
+    @staticmethod
+    def get_mentors():
+        try:
+            # Find users with the role "alumni"
+            mentors = list(users_collection.find({"role": "alumni"}))
+            # Convert ObjectId to string for JSON serialization
+            for mentor in mentors:
+                mentor["_id"] = str(mentor["_id"])
+            return mentors
+        except Exception as e:
+            print(f"Error getting mentors: {e}")
+            return []
 
 
 class Collaboration:
@@ -705,3 +954,313 @@ class Collaboration:
             return True
         except Exception as e:
             raise Exception(f"Error updating collaboration status: {str(e)}")
+
+
+# In models.py
+# models.py - ONLY the Job class
+class job:
+    def __init__(
+        self,
+        title,
+        company,
+        location,
+        description,
+        posted_by,  # This links to the User model (alumni or staff)
+        salary_min=None,  # Make optional
+        salary_max=None,  # Make optional
+        job_type=[],  # e.g., "Full-time", "Part-time", "Internship"  Make this a list
+        requirements="",  # List of requirements  -->>CHANGED TO STRING
+        how_to_apply="",  # Store application instructions (text)
+        apply_link=None,  # Optional link
+        created_at=None,
+        deadline=None,  # added deadline for jobpost
+    ):
+        self.title = title
+        self.company = company
+        self.location = location
+        self.description = description
+        self.posted_by = posted_by
+        self.salary_min = salary_min
+        self.salary_max = salary_max
+        self.job_type = job_type  # Store as a list
+        self.requirements = requirements  # Store as a String now
+        self.how_to_apply = how_to_apply  # HTML content is OK, but *sanitize* on input
+        self.apply_link = apply_link
+        self.created_at = created_at or datetime.utcnow()
+        self.deadline = deadline  # deadline
+
+    @staticmethod
+    def create(data):
+        job_data = {
+            "title": data["title"],
+            "company": data["company"],
+            "location": data["location"],
+            "description": data["description"],
+            "posted_by": data["posted_by"],
+            "salary_min": data.get("salary_min"),  # Handle optional fields
+            "salary_max": data.get("salary_max"),
+            "job_type": data.get(
+                "job_type", []
+            ),  # Default to empty list if not provided
+            "requirements": data.get("requirements", ""),  # now string
+            "how_to_apply": data.get("how_to_apply", ""),  # can be null
+            "apply_link": data.get("apply_link", None),
+            "created_at": datetime.utcnow(),
+            "deadline": data.get("deadline"),
+        }
+        result = jobs_collection.insert_one(job_data)
+        return str(result.inserted_id)
+
+    @staticmethod
+    def get_all(
+        page=1,
+        limit=10,
+        search_term=None,
+        location=None,
+        job_type=None,
+        sort_by="created_at",
+        sort_order=-1,
+    ):
+        skip = (page - 1) * limit
+        query = {}
+
+        # Add search term filter (if provided)
+        if search_term:
+            query["$or"] = [
+                {
+                    "title": {"$regex": search_term, "$options": "i"}
+                },  # Case-insensitive search
+                {"company": {"$regex": search_term, "$options": "i"}},
+                {"description": {"$regex": search_term, "$options": "i"}},
+                {
+                    "requirements": {"$regex": search_term, "$options": "i"}
+                },  # search in requirements
+                {
+                    "location": {"$regex": search_term, "$options": "i"}
+                },  # search in location
+            ]
+        if location:
+            query["location"] = {
+                "$regex": location,
+                "$options": "i",
+            }  # Case-insensitive
+
+        if job_type:
+            query["job_type"] = job_type  # job_type filter
+
+        sort_field = (
+            sort_by
+            if sort_by
+            in [
+                "title",
+                "company",
+                "location",
+                "salary_min",
+                "salary_max",
+                "created_at",
+            ]
+            else "created_at"
+        )
+
+        # Convert sort_order to integer, defaulting to -1 (descending)
+        sort_order = int(sort_order) if sort_order in ["1", "-1"] else -1
+
+        total = jobs_collection.count_documents(query)
+        jobs = list(
+            jobs_collection.find(query)
+            .sort(sort_field, sort_order)
+            .skip(skip)
+            .limit(limit)
+        )
+
+        for job in jobs:
+            job["_id"] = str(job["_id"])
+            job["posted_by"] = str(job["posted_by"])
+            job["created_at"] = job["created_at"].isoformat()
+            # Convert deadline to ISO format if it exists, and handle None
+            if job.get("deadline"):
+                if isinstance(job.get("deadline"), datetime):
+                    job["deadline"] = job["deadline"].isoformat()
+
+        return {
+            "jobs": jobs,
+            "total": total,
+            "page": page,
+            "pages": (total + limit - 1) // limit,
+        }
+
+    @staticmethod
+    def get_by_id(job_id):
+        try:
+            job = jobs_collection.find_one({"_id": ObjectId(job_id)})
+            if job:
+                job["_id"] = str(job["_id"])
+                # Fetch and embed author details
+                author = users_collection.find_one({"_id": ObjectId(job["posted_by"])})
+                if author:
+                    job["author"] = {
+                        "name": author["name"],
+                        "email": author["email"],
+                        "role": author["role"],
+                        "dept": author.get("dept"),
+                        "batch": author.get("batch"),
+                        "staff_id": author.get("staff_id"),
+                    }
+                else:
+                    job["author"] = {"name": "Unknown", "email": "Unknown"}
+
+                job["posted_by"] = str(job["posted_by"])  # Keep consistent
+                if job.get("created_at"):
+                    job["created_at"] = job.get("created_at").isoformat()
+                if job.get("deadline"):  # Check for the deadline
+                    job["deadline"] = job.get("deadline")
+                return job
+            else:
+                return None  # Job not found
+        except Exception as e:
+            print(f"Somthing went wrong in models.py: {e}")
+            return None
+
+    @staticmethod
+    def update(job_id, data):
+        # Prevent modification of certain fields
+        if "posted_by" in data:
+            del data["posted_by"]
+        if "created_at" in data:
+            del data["created_at"]
+        result = jobs_collection.update_one({"_id": ObjectId(job_id)}, {"$set": data})
+        return result.modified_count > 0
+
+    @staticmethod
+    def delete(job_id):
+        result = jobs_collection.delete_one({"_id": ObjectId(job_id)})
+        return result.deleted_count > 0
+
+
+# analytics part
+
+
+class Analytics:  # New class
+
+    @staticmethod
+    def get_user_counts_by_role():
+        counts = {}
+        for role in ["student", "alumni", "staff"]:
+            counts[role] = users_collection.count_documents({"role": role})
+        return counts
+
+    @staticmethod
+    def get_new_user_registrations(days=30):
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        pipeline = [
+            {"$match": {"created_at": {"$gte": cutoff_date}}},
+            {
+                "$group": {
+                    "_id": {
+                        "$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}
+                    },
+                    "count": {"$sum": 1},
+                }
+            },
+            {"$sort": {"_id": 1}},
+        ]
+        return list(users_collection.aggregate(pipeline))
+
+    @staticmethod
+    def get_active_users(days=30):
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        return users_collection.count_documents({"created_at": {"$gte": cutoff_date}})
+
+    @staticmethod
+    def get_department_distribution(role):
+        pipeline = [
+            {"$match": {"role": role}},
+            {"$group": {"_id": "$dept", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+        ]
+        return list(users_collection.aggregate(pipeline))
+
+    @staticmethod
+    def get_batch_year_distribution(role):
+        pipeline = [
+            {"$match": {"role": role}},
+            {"$group": {"_id": "$batch", "count": {"$sum": 1}}},
+            {"$sort": {"_id": 1}},
+        ]
+        return list(users_collection.aggregate(pipeline))
+
+    @staticmethod
+    def get_mentorship_request_status_breakdown():
+        pipeline = [
+            {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+            {"$project": {"status": "$_id", "count": 1, "_id": 0}},
+        ]
+        return list(mentorship_requests.aggregate(pipeline))
+
+    @staticmethod
+    def get_total_mentorship_requests(days=None):
+        query = {}
+        if days:
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            query = {"created_at": {"$gte": cutoff_date}}
+        pipeline = [
+            {"$match": query},
+            {"$group": {"_id": None, "count": {"$sum": 1}}},
+            {"$project": {"_id": 0, "count": 1}},
+        ]
+        result = list(mentorship_requests.aggregate(pipeline))
+        return result[0]["count"] if result else 0
+
+    @staticmethod
+    def get_total_projects_created(days=None):
+        query = {}
+        if days:
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            query = {"created_at": {"$gte": cutoff_date}}
+        return projects_collection.count_documents(query)
+
+    @staticmethod
+    def get_project_status_breakdown():
+        pipeline = [
+            {
+                "$project": {
+                    "status": {
+                        "$switch": {
+                            "branches": [
+                                {
+                                    "case": {"$eq": ["$progress", 0]},
+                                    "then": "Not Started",
+                                },
+                                {
+                                    "case": {"$lt": ["$progress", 100]},
+                                    "then": "In Progress",
+                                },
+                                {
+                                    "case": {"$eq": ["$progress", 100]},
+                                    "then": "Completed",
+                                },
+                            ],
+                            "default": "Unknown",
+                        }
+                    }
+                }
+            },
+            {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+            {"$project": {"status": "$_id", "count": 1, "_id": 0}},
+        ]
+        return list(projects_collection.aggregate(pipeline))
+
+    @staticmethod
+    def get_top_technologies(limit=10):
+        pipeline = [
+            {"$unwind": "$tech_stack"},  # Deconstruct the tech_stack array
+            {
+                "$group": {"_id": "$tech_stack", "count": {"$sum": 1}}
+            },  # Group by technology and count
+            {"$sort": {"count": -1}},  # Sort by count (descending)
+            {"$limit": limit},  # Limit to top N technologies
+            {
+                "$project": {"tech": "$_id", "count": 1, "_id": 0}
+            },  # Optional: Rename fields
+        ]
+        return list(projects_collection.aggregate(pipeline))

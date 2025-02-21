@@ -1,0 +1,43 @@
+/* src/components/analytics/AnalyticsDashboard.css */
+
+.sidebar {
+    background-color: #f8f9fa;
+    /* Light gray background */
+    padding: 20px;
+    border-right: 1px solid #dee2e6;
+    /* Subtle border */
+    min-height: 100vh;
+    /* Ensure it takes at least the full viewport height */
+}
+
+.content {
+    padding: 20px;
+}
+
+.nav-link {
+    color: #007bff;
+    /* Bootstrap primary color for links */
+    padding: 10px 15px;
+    border-radius: 5px;
+    /* Slightly rounded corners */
+    transition: background-color 0.2s ease;
+    /* Smooth transition */
+}
+
+.nav-link:hover {
+    background-color: #e9ecef;
+    /* Light gray on hover */
+    color: #0056b3;
+    /* Darker blue on hover */
+}
+
+.nav-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.nav-link.active:hover {
+    background-color: #0056b3;
+}
+
+/* You can add more styles here for the charts, tables, etc. */

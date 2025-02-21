@@ -1,0 +1,43 @@
+/* src/components/Jobs/JobDetails.css */
+
+.job-details-card {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    border: 1px solid #ddd;
+    /* Add a subtle border */
+}
+
+.job-details-card .card-title {
+    font-size: 1.5rem;
+    /* Larger title */
+    font-weight: bold;
+    color: #333;
+    /* Darker title color */
+}
+
+.job-details-card .card-subtitle {
+    font-size: 1.1rem;
+    color: #6c757d;
+    /* Bootstrap muted text color */
+    margin-bottom: 1rem;
+    /* More space below subtitle */
+}
+
+.job-details-card .card-text strong {
+    color: #0d6efd;
+    /* Bootstrap primary color for headings */
+    display: block;
+    /* Make it a block-level element for spacing. */
+    margin-bottom: .5rem;
+    /* Space below strong tags */
+}
+
+.job-details-card .card-text ul {
+    padding-left: 20px;
+}
+
+.job-details-card .badge {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+}

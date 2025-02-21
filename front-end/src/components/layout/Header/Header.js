@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Navbar, Nav, Container, NavDropdown } from 'react-bootstrap';
-import { FaUserCircle, FaFolder, FaPlus, FaProjectDiagram } from 'react-icons/fa';
+// Import all necessary icons
+import { FaUserCircle, FaFolder, FaPlus, FaProjectDiagram, FaBriefcase, FaHandshake, FaHome, FaNewspaper, FaCalendarAlt, FaChartLine, FaUserTie, FaUserGraduate, FaUserPlus, FaChalkboardTeacher } from 'react-icons/fa';
 import { useAuth } from '../../../contexts/AuthContext';
 import './Header.css';
 
@@ -18,7 +19,6 @@ const Header = () => {
         }
     };
 
-    // Function to render role-specific menu items
     const renderRoleSpecificMenus = () => {
         if (!user) return null;
 
@@ -27,39 +27,20 @@ const Header = () => {
         if (role === 'student') {
             return (
                 <>
-                    <NavDropdown
-                        title={
-                            <span>
-                                <FaProjectDiagram className="me-1" />
-                                Projects
-                            </span>
-                        }
-                        id="projects-dropdown"
-                    >
-                        <NavDropdown.Item
-                            as={Link}
-                            to="/projects/my-projects"
-                            className="d-flex align-items-center"
-                        >
-                            <FaFolder className="me-2" />
-                            My Projects
+                    <NavDropdown title={<><FaProjectDiagram className="me-1" />Projects</>} id="projects-dropdown">
+                        <NavDropdown.Item as={Link} to="/projects/my-projects" className="d-flex align-items-center">
+                            <FaFolder className="me-2" />My Projects
                         </NavDropdown.Item>
-                        <NavDropdown.Item
-                            as={Link}
-                            to="/projects/create"
-                            className="d-flex align-items-center"
-                        >
-                            <FaPlus className="me-2" />
-                            Create Project
+                        <NavDropdown.Item as={Link} to="/projects/create" className="d-flex align-items-center">
+                            <FaPlus className="me-2" />Create Project
                         </NavDropdown.Item>
-                        <NavDropdown.Item as={Link} to="/projects/mentorship">Seek Mentorship</NavDropdown.Item>
-                        <NavDropdown.Item
-                            as={Link}
-                            to="/projects/collaborations">
-                            Collaborations
+                        <NavDropdown.Item as={Link} to="/projects/mentorship">
+                            <FaHandshake className="me-2" />Seek Mentorship</NavDropdown.Item>
+                        <NavDropdown.Item as={Link} to="/projects/collaborations">
+                            <FaUserPlus className="me-2" />Collaborations {/*Added user plus icon*/}
                         </NavDropdown.Item>
                     </NavDropdown>
-                    <Nav.Link as={Link} to="/jobs">Jobs</Nav.Link>
+                    <Nav.Link as={Link} to="/jobs"> <FaBriefcase className="me-1" />Jobs</Nav.Link>
                 </>
             );
         }
@@ -67,37 +48,37 @@ const Header = () => {
         if (role === 'alumni') {
             return (
                 <>
-                    <NavDropdown title="Mentorship" id="mentorship-dropdown">
-                        <NavDropdown.Item as={Link} to="/mentorship/requests">Mentorship Requests</NavDropdown.Item>
-                        <NavDropdown.Item as={Link} to="/mentorship/my-mentees">My Mentees</NavDropdown.Item>
+                    <NavDropdown title={<><FaHandshake className="me-1" />Mentorship</>} id="mentorship-dropdown">
+                        <NavDropdown.Item as={Link} to="/alumni/mentorship">
+                            <FaHandshake className="me-2" />Mentorship Requests</NavDropdown.Item>
+                        <NavDropdown.Item as={Link} to="/alumni/mentees">
+                            <FaUserGraduate className="me-2" />My Mentees</NavDropdown.Item>
                     </NavDropdown>
-                    <Nav.Link as={Link} to="/jobs/post">Post Jobs</Nav.Link>
+
+                    <NavDropdown title={<><FaBriefcase className="me-1" />Jobs</>} id="jobs-dropdown">
+                        <NavDropdown.Item as={Link} to="/jobs">
+                            <FaBriefcase className="me-2" />View Jobs
+                        </NavDropdown.Item>
+                        <NavDropdown.Item as={Link} to="/jobs/create">
+                            <FaPlus className="me-2" /> Post Job
+                        </NavDropdown.Item>
+                    </NavDropdown>
                 </>
             );
         }
 
+
         if (role === 'staff') {
             return (
                 <>
-                    <Nav.Link as={Link} to="/projects">Student Projects</Nav.Link>
-                    <Nav.Link as={Link} to="/analytics">Analytics</Nav.Link>
+
+                    <Nav.Link as={Link} to="/analytics"><FaChartLine className="me-1" />Analytics</Nav.Link>
+
                 </>
             );
         }
     };
 
-    const projectsDropdownItems = [
-        {
-            label: 'My Projects',
-            path: '/projects/my-projects',
-            icon: <FaFolder className="me-2" />
-        },
-        {
-            label: 'Create Project',
-            path: '/projects/create',
-            icon: <FaPlus className="me-2" />
-        }
-    ];
 
     return (
         <Navbar bg="white" expand="lg" className="shadow-sm">
@@ -106,9 +87,9 @@ const Header = () => {
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                     <Nav className="me-auto">
-                        <Nav.Link as={Link} to="/">Home</Nav.Link>
-                        <Nav.Link as={Link} to="/news">News</Nav.Link>
-                        <Nav.Link as={Link} to="/events">Events</Nav.Link>
+                        <Nav.Link as={Link} to="/"><FaHome className="me-1" />Home</Nav.Link>
+                        <Nav.Link as={Link} to="/news"><FaNewspaper className="me-1" />News</Nav.Link>
+                        <Nav.Link as={Link} to="/events"><FaCalendarAlt className="me-1" />Events</Nav.Link>
                         {renderRoleSpecificMenus()}
                     </Nav>
 
@@ -129,4 +110,4 @@ const Header = () => {
     );
 };
 
-export default Header; 
+export default Header;

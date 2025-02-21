@@ -1,0 +1,108 @@
+/*JobList.css*/
+/* Styles for the JobList component */
+.job-list-container {
+    padding: 20px;
+}
+
+.job-card {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    transition: box-shadow 0.3s ease;
+}
+
+.job-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.job-card-body {
+    padding: 20px;
+}
+
+.job-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #0d6efd;
+    /* Bootstrap primary color for links */
+    text-decoration: none;
+    /* Remove underline from links */
+    display: block;
+    /* Make the title a block element */
+    margin-bottom: 0.5rem;
+    /* Add some space below the title */
+}
+
+/* Style the link within the title */
+.job-title a {
+    color: inherit;
+    /* Inherit color from parent (the h5) */
+    text-decoration: none;
+    /* Remove underline */
+}
+
+.job-title a:hover {
+    text-decoration: underline;
+}
+
+.job-company {
+    font-size: 1rem;
+    color: #6c757d;
+    /* Bootstrap muted text color */
+    margin-bottom: 0.5rem;
+}
+
+.job-location {
+    font-style: italic;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.job-salary {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.job-type-badges .badge {
+    margin-right: 5px;
+    /* Add spacing between badges */
+}
+
+.job-card .card-text {
+    color: #212529;
+    /* Bootstrap body text color */
+    margin-bottom: 0.5rem;
+}
+
+.job-link {
+    margin-right: 10px;
+    text-decoration: none;
+}
+
+/* Pagination Styles */
+.pagination {
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    /* Bootstrap primary color */
+    border-color: #0d6efd;
+    color: white;
+}
+
+.pagination .page-link {
+    color: #0d6efd;
+    /* Bootstrap primary color */
+    border: 1px solid #dee2e6;
+    /* Bootstrap default border color */
+}
+
+.pagination .page-link:hover {
+    color: #0a58ca;
+    /* Darker shade of primary on hover */
+    background-color: #e9ecef;
+    /* Light gray background on hover */
+    border-color: #dee2e6;
+    /* Bootstrap default border color */
+}
