@@ -1,4 +1,5 @@
-import React from 'react';
+// front-end/src/components/analytics/charts/UserEngagementChart.js
+import React, { useState } from 'react';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -11,9 +12,8 @@ import {
     Tooltip,
     Legend,
     ArcElement
-} from 'chart.js'
-import { Container, Row, Col, Card } from 'react-bootstrap';
-
+} from 'chart.js';
+import { Container, Card, Tabs, Tab } from 'react-bootstrap'; // Removed Row, Col (not needed)
 
 ChartJS.register(
     CategoryScale,
@@ -27,21 +27,21 @@ ChartJS.register(
     ArcElement
 );
 
-const UserEngagementChart = ({ data }) => {
-
+const UserEngagementChart = ({ data, activeTab, setActiveTab }) => { // Added setActiveTab
+    // Removed local chartTab state, now controlled by AnalyticsDashboard
     if (!data) {
         return <div>No data available for User Engagement.</div>;
     }
-    // --- User Counts Chart (Bar Chart) ---
+
     const userCountsData = {
         labels: Object.keys(data.user_counts),
         datasets: [{
             label: 'Number of Users',
             data: Object.values(data.user_counts),
             backgroundColor: [
-                'rgba(255, 99, 132, 0.6)',  // Red
-                'rgba(54, 162, 235, 0.6)', // Blue
-                'rgba(255, 206, 86, 0.6)', // Yellow
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
             ],
             borderColor: [
                 'rgba(255, 99, 132, 1)',
@@ -57,17 +57,14 @@ const UserEngagementChart = ({ data }) => {
             y: {
                 beginAtZero: true,
                 ticks: {
-                    stepSize: 1, // Ensure integer ticks
-
+                    stepSize: 1,
                 }
             }
         }
     };
 
-
-    // --- New User Registrations (Line Chart) ---
     const registrationData = {
-        labels: data.new_registrations.map(item => item._id), // Dates
+        labels: data.new_registrations.map(item => item._id),
         datasets: [{
             label: 'New Registrations',
             data: data.new_registrations.map(item => item.count),
@@ -77,112 +74,106 @@ const UserEngagementChart = ({ data }) => {
         }]
     };
 
-    // --- Department Distribution (Pie Chart - Students) ---
-    const studentDeptData = {
+    const registrationOptions = {
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    };
+
+    const deptDistributionData = {
         labels: data.student_departments.map(item => item._id),
         datasets: [{
-            label: 'Student Department Distribution',
+            label: 'Department Distribution',
             data: data.student_departments.map(item => item.count),
-            backgroundColor: [ // Some distinct colors
-                'rgba(255, 99, 132, 0.5)',
-                'rgba(54, 162, 235, 0.5)',
-                'rgba(255, 206, 86, 0.5)',
-                'rgba(75, 192, 192, 0.5)',
-                'rgba(153, 102, 255, 0.5)',
-                'rgba(255, 159, 64, 0.5)'
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)'
             ],
-            hoverOffset: 4
-        }]
-    };
-    // --- Department Distribution (Pie Chart - Alumni) ---
-    const alumniDeptData = {
-        labels: data.alumni_departments.map(item => item._id),
-        datasets: [{
-            label: 'Alumni Department Distribution',
-            data: data.alumni_departments.map(item => item.count),
-            backgroundColor: [ // Some distinct colors
-                'rgba(255, 99, 132, 0.5)',
-                'rgba(54, 162, 235, 0.5)',
-                'rgba(255, 206, 86, 0.5)',
-                'rgba(75, 192, 192, 0.5)',
-                'rgba(153, 102, 255, 0.5)',
-                'rgba(255, 159, 64, 0.5)'
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
             ],
-            hoverOffset: 4
+            borderWidth: 1
         }]
     };
 
-    const batchData = {
-        labels: data.student_batches.map(item => item._id),
+    const batchDistributionData = {
+        labels: data.student_batches.map(item => item._id.toString()),
         datasets: [{
-            label: 'Student Batch Distribution',
+            label: 'Batch Year Distribution',
             data: data.student_batches.map(item => item.count),
             backgroundColor: [
-                'rgba(75, 192, 192, 0.5)',    // Teal
-                'rgba(54, 162, 235, 0.5)',   // Blue
-                'rgba(255, 99, 132, 0.5)',  // Red
-                'rgba(255, 206, 86, 0.5)',  // Yellow
-                'rgba(153, 102, 255, 0.5)', // Purple
-                'rgba(255, 159, 64, 0.5)'   // Orange
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)'
             ],
-            hoverOffset: 4
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
         }]
     };
-
-
 
     return (
         <Container>
-            <h2>User Engagement and Growth</h2>
-
-            <Row>
-                <Col md={6}>
-                    <Card className="mb-4">
+            <Tabs
+                activeKey={activeTab} // Controlled by prop from AnalyticsDashboard
+                onSelect={(k) => setActiveTab(k)} // Use prop function to update parent state
+                id="user-engagement-tabs"
+                className="mb-3"
+            >
+                <Tab eventKey="userCounts" title="User Counts">
+                    <Card>
                         <Card.Body>
                             <Card.Title>User Counts by Role</Card.Title>
                             <Bar data={userCountsData} options={userCountsOptions} />
                         </Card.Body>
                     </Card>
-                </Col>
-                <Col md={6}>
-                    <Card className="mb-4">
+                </Tab>
+                <Tab eventKey="newRegistrations" title="New Registrations">
+                    <Card>
                         <Card.Body>
-                            <Card.Title>New User Registrations (Last 30 Days)</Card.Title>
-                            <Line data={registrationData} />
+                            <Card.Title>New User Registrations Over Time</Card.Title>
+                            <Line data={registrationData} options={registrationOptions} />
                         </Card.Body>
                     </Card>
-                </Col>
-            </Row>
-            <Row>
-                <Col>
-                    <Card className="mb-4">
+                </Tab>
+                <Tab eventKey="departmentDistribution" title="Department Distribution">
+                    <Card>
                         <Card.Body>
-                            <Card.Title>Student Department Distribution</Card.Title>
-                            <Pie data={studentDeptData} />
+                            <Card.Title>Department Distribution</Card.Title>
+                            <Pie data={deptDistributionData} />
                         </Card.Body>
                     </Card>
-                </Col>
-                <Col>
-                    <Card className="mb-4">
+                </Tab>
+                <Tab eventKey="batchDistribution" title="Batch Distribution">
+                    <Card>
                         <Card.Body>
-                            <Card.Title>Alumni Department Distribution</Card.Title>
-                            <Pie data={alumniDeptData} />
+                            <Card.Title>Batch Distribution</Card.Title>
+                            <Pie data={batchDistributionData} />
                         </Card.Body>
                     </Card>
-                </Col>
-            </Row>
-            <Row>
-                <Col md={6}>
-                    <Card className="mb-4">
-                        <Card.Body>
-                            <Card.Title>Batch Year Distribution</Card.Title>
-                            <Bar data={batchData} options={userCountsOptions} />
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+                </Tab>
+            </Tabs>
         </Container>
-
     );
 };
 

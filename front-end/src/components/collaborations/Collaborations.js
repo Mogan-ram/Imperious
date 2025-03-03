@@ -46,7 +46,7 @@ const StatusCard = ({ request }) => {
                             <strong>Technologies:</strong>
                             <div className="d-flex gap-2 mt-2">
                                 {request.project.tech_stack.map(tech => (
-                                    <Badge key={tech} bg="secondary">{tech}</Badge>
+                                    <Badge key={tech} bg="secondary" style={{ textTransform: 'capitalize' }}>{tech}</Badge>
                                 ))}
                             </div>
                         </div>
@@ -77,7 +77,7 @@ const CollaboratedProjectCard = ({ project }) => {
 
                         <div className="d-flex gap-2 mb-3">
                             {project.tech_stack.map(tech => (
-                                <Badge key={tech} bg="secondary">{tech}</Badge>
+                                <Badge key={tech} bg="secondary" style={{ textTransform: 'capitalize' }}>{tech}</Badge>
                             ))}
                         </div>
                     </div>

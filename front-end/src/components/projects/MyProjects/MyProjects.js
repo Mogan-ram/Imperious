@@ -105,10 +105,7 @@ const MyProjects = () => {
 
     return (
         <Container className="py-4">
-            <Breadcrumb>
-                <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/" }}>Home</Breadcrumb.Item>
-                <Breadcrumb.Item active>My Projects</Breadcrumb.Item>
-            </Breadcrumb>
+
 
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div className="d-flex align-items-center gap-3">
@@ -178,6 +175,18 @@ const MyProjects = () => {
                                                 project.progress > 50 ? 'In Progress' :
                                                     project.progress > 0 ? 'Started' : 'Not Started'}
                                         </Badge>
+                                        <p><b>Collaborators:</b></p>
+                                        {project.collaborators && project.collaborators.length > 0 ? (
+                                            <ul>
+                                                {project.collaborators.map((collaborator) => (
+                                                    <li key={collaborator.id}>
+                                                        {collaborator.name} ({collaborator.dept})
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p>No collaborators added yet.</p>
+                                        )}
                                     </div>
                                     <div className="d-flex gap-2">
                                         <Button
@@ -242,6 +251,7 @@ const MyProjects = () => {
                     </Col>
                 ))}
             </Row>
+
 
             {/* Pagination */}
             {totalPages > 1 && (
