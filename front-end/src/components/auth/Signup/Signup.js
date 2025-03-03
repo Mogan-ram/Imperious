@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "./Signup.css";
-import { Form } from 'react-bootstrap';
+import { Form, Button } from 'react-bootstrap';
 import { useAuth } from '../../../contexts/AuthContext';
-import { FaUserGraduate, FaUserTie, FaChalkboardTeacher } from 'react-icons/fa';
+import { FaUserGraduate, FaUserTie, FaChalkboardTeacher, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const Signup = () => {
     const navigate = useNavigate();
@@ -11,6 +11,8 @@ const Signup = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [role, setRole] = useState('student');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -22,11 +24,7 @@ const Signup = () => {
         batch: '',
         staffId: ''
     });
-
-    const [interests, setInterests] = useState({
-        volunteering: false,
-        mentorship: false
-    });
+    const [willingness, setWillingness] = useState([]); // Array for selected options
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -35,6 +33,22 @@ const Signup = () => {
             [name]: value
         }));
     };
+    //  const handleWillingnessChange = (e) => {
+    //   const { value, checked } = e.target;
+    //     if (checked) {
+    //         // Add to the array if checked
+    //         setWillingness(prev => [...prev, value]);
+    //   } else {
+    //        // Remove from the array if unchecked
+    //       setWillingness(prev => prev.filter(item => item !== value));
+    //    }
+    // };
+
+    const handleWillingnessChange = (e) => {
+        const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value)
+        setWillingness(selectedOptions)
+    }
+
 
     const validateForm = () => {
         if (formData.password !== formData.confirmPassword) {
@@ -55,6 +69,24 @@ const Signup = () => {
                 return false;
             }
         }
+
+        // Reg number validation for students and alumni
+        if (role !== 'staff' && !formData.regno.trim()) {
+            setError('Register Number is required');
+            return false;
+        }
+
+        // Batch validation for students and alumni
+        if ((role === 'student' || role === 'alumni') && (!formData.batch || isNaN(parseInt(formData.batch)))) {
+            setError('Valid Batch Year is required');
+            return false;
+        }
+
+        if (!formData.dept) {
+            setError('Please select a department');
+            return false;
+        }
+
 
         return true;
     };
@@ -77,16 +109,14 @@ const Signup = () => {
                     ? { staff_id: formData.staffId.trim() }
                     : {
                         regno: formData.regno.trim().toUpperCase(),
-                        batch: parseInt(formData.batch),
-                        ...(role === 'alumni' && {
-                            volunteering: interests.volunteering,
-                            mentorship: interests.mentorship
-                        })
+                        batch: parseInt(formData.batch), // Ensure batch is an integer
+                        ...(role === 'alumni' && { willingness: willingness }) // Include willingness
+
                     }
                 )
             };
 
-            console.log('Submitting signup data:', signupData);
+            console.log('Submitting signup data:', signupData);  // Debug log
             await signup(signupData);
             navigate('/signin');
 
@@ -100,6 +130,26 @@ const Signup = () => {
             setLoading(false);
         }
     };
+    // Added a function to handle the visibility
+    const toggleShowPassword = () => {
+        setShowPassword(!showPassword); // Toggle the state
+    };
+    const toggleShowConfirmPassword = () => {
+        setShowConfirmPassword(!showConfirmPassword)
+    }
+
+
+    // Define willingnessOptions here, inside the component but *outside* any function
+    const willingnessOptions = [
+        { id: 'volunteering', label: 'Volunteering' },
+        { id: 'mentorship', label: 'Mentorship' },
+        { id: 'guest_lecture', label: 'Guest Lecture' },
+        { id: 'placement_training', label: 'Placement Training' },
+        { id: 'networking', label: 'Networking Events' },
+        { id: 'fundraising', label: 'Fundraising' },
+        { id: 'research', label: 'Research Collaboration' }
+    ];
+
 
     return (
         <div className="signup-container">
@@ -111,6 +161,7 @@ const Signup = () => {
 
                 <div className="user-type-buttons">
                     <button
+                        type="button"
                         className={`type-btn ${role === 'student' ? 'active' : ''}`}
                         onClick={() => setRole('student')}
                     >
@@ -118,6 +169,7 @@ const Signup = () => {
                         Student
                     </button>
                     <button
+                        type="button"
                         className={`type-btn ${role === 'alumni' ? 'active' : ''}`}
                         onClick={() => setRole('alumni')}
                     >
@@ -125,6 +177,7 @@ const Signup = () => {
                         Alumni
                     </button>
                     <button
+                        type="button"
                         className={`type-btn ${role === 'staff' ? 'active' : ''}`}
                         onClick={() => setRole('staff')}
                     >
@@ -136,7 +189,8 @@ const Signup = () => {
                 <Form onSubmit={handleSubmit}>
                     <div className="form-row">
                         <div className="form-field">
-                            <input
+                            <Form.Label>Full Name</Form.Label>
+                            <Form.Control
                                 type="text"
                                 name="name"
                                 value={formData.name}
@@ -147,7 +201,8 @@ const Signup = () => {
                         </div>
 
                         <div className="form-field">
-                            <input
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control
                                 type="email"
                                 name="email"
                                 value={formData.email}
@@ -160,7 +215,8 @@ const Signup = () => {
 
                     <div className="form-row">
                         <div className="form-field">
-                            <select
+                            <Form.Label>Department</Form.Label>
+                            <Form.Select
                                 name="dept"
                                 value={formData.dept}
                                 onChange={handleChange}
@@ -176,12 +232,13 @@ const Signup = () => {
                                 <option value="AERO">Aerospace Engineering</option>
                                 <option value="MBA">Master of Business Administration</option>
                                 <option value="MCA">Master of Computer Applications</option>
-                            </select>
+                            </Form.Select>
                         </div>
 
                         {role !== 'staff' ? (
                             <div className="form-field">
-                                <input
+                                <Form.Label>Register Number</Form.Label>
+                                <Form.Control
                                     type="text"
                                     name="regno"
                                     value={formData.regno}
@@ -192,7 +249,8 @@ const Signup = () => {
                             </div>
                         ) : (
                             <div className="form-field">
-                                <input
+                                <Form.Label>Staff ID</Form.Label>
+                                <Form.Control
                                     type="text"
                                     name="staffId"
                                     value={formData.staffId}
@@ -200,6 +258,11 @@ const Signup = () => {
                                     placeholder="Enter Staff ID "
                                     required
                                 />
+                                {formData.dept && (
+                                    <Form.Text className="text-muted">
+                                        Format: {formData.dept}XX (e.g., {formData.dept}01)
+                                    </Form.Text>
+                                )}
                             </div>
                         )}
                     </div>
@@ -207,7 +270,10 @@ const Signup = () => {
                     <div className="form-row">
                         {(role === 'student' || role === 'alumni') && (
                             <div className="form-field">
-                                <input
+                                <Form.Label>
+                                    Batch Year
+                                </Form.Label>
+                                <Form.Control
                                     type="number"
                                     name="batch"
                                     value={formData.batch}
@@ -219,69 +285,83 @@ const Signup = () => {
                         )}
 
                         <div className="form-field">
-                            <input
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                placeholder="Password"
-                                required
-                            />
+                            <Form.Label>Password</Form.Label>
+                            <div className="password-input-container">
+                                <Form.Control
+                                    type={showPassword ? "text" : "password"}
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    placeholder="Password"
+                                    required
+                                />
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    onClick={toggleShowPassword}
+                                    className="password-toggle-btn"
+                                >
+                                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
                     <div className="form-row">
                         <div className="form-field">
-                            <input
-                                type="password"
-                                name="confirmPassword"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                placeholder="Confirm Password"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    {role === 'alumni' && (
-                        <div className="form-field">
-                            <label>Willing to</label>
-                            <div className="checkbox-group">
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={interests.volunteering}
-                                        onChange={(e) => setInterests(prev => ({
-                                            ...prev,
-                                            volunteering: e.target.checked
-                                        }))}
-                                    />
-                                    Volunteering
-                                </label>
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={interests.mentorship}
-                                        onChange={(e) => setInterests(prev => ({
-                                            ...prev,
-                                            mentorship: e.target.checked
-                                        }))}
-                                    />
-                                    Mentorship
-                                </label>
+                            <Form.Label>Confirm Password</Form.Label>
+                            <div className="password-input-container">
+                                <Form.Control
+                                    type={showConfirmPassword ? "text" : "password"} // Toggle input type
+                                    name="confirmPassword"
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
+                                    placeholder="Confirm Password"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle-btn"
+                                    onClick={toggleShowConfirmPassword}
+                                >
+                                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                                </button>
                             </div>
                         </div>
+                    </div>
+                    {/* Willingness Multi-select (for Alumni only) */}
+                    {role === 'alumni' && (
+                        <Form.Group className="mb-3">
+                            <Form.Label>Willing to:</Form.Label>
+                            <Form.Select
+                                name="willingness"
+                                multiple  // This is key for multi-select
+                                value={willingness} // Control the selected options
+                                onChange={handleWillingnessChange}
+                                className='form-select'
+                            >
+
+                                <option value="volunteering">Volunteering</option>
+                                <option value="mentorship">Mentorship</option>
+                                <option value="guest lecture">Guest Lecture</option>
+                                <option value="placement training">Placement Training</option>
+                                <option value='networking'>Networking Events</option>
+                                <option value='fundraising'>Fundraising</option>
+                                <option value='research'>Research Collaboration</option>
+                            </Form.Select>
+                        </Form.Group>
                     )}
 
-                    {error && <div className="error-message">{error}</div>}
 
-                    <button
+                    {error && <div className="error-message alert alert-danger">{error}</div>}
+
+                    <Button
                         type="submit"
                         className="signup-button"
                         disabled={loading}
                     >
                         Create account
-                    </button>
+                    </Button>
 
                     <div className="login-link">
                         Already have an account? <Link to="/signin">Log in</Link>
@@ -293,4 +373,3 @@ const Signup = () => {
 };
 
 export default Signup;
-

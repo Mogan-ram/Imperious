@@ -1,5 +1,5 @@
 from pymongo import MongoClient, DESCENDING
-from bson.objectid import ObjectId
+from bson import ObjectId
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import logging
@@ -13,11 +13,9 @@ try:
     db = client["imperious"]
     users_collection = db["users"]
     feeds_collection = db["feeds"]
-    news_events_collection = db["news_events"]  # Add news_events collection
-    projects_collection = db["projects"]  # Renamed from repositories
-    student_records_collection = db[
-        "student_records"
-    ]  # Added student_records collection
+    news_events_collection = db["news_events"]
+    projects_collection = db["projects"]
+    student_records_collection = db["student_records"]
     mentorship_requests = db["mentorship_requests"]
     pending_staff_collection = db["pending_staff_registrations"]
     collaboration_requests = db["collaboration_requests"]
@@ -26,6 +24,7 @@ try:
     print("Connected successfully to MongoDB")
 except Exception as e:
     print(f"Could not connect to MongoDB: {e}")
+    # sys.exit(1) # Exit during development to catch errors immediately
 
 
 class User:
@@ -39,6 +38,7 @@ class User:
         regno=None,
         batch=None,
         staff_id=None,
+        willingness=None,  # Added willingness
     ):
         self.email = email
         # Don't hash password in __init__, store the plain password temporarily
@@ -49,6 +49,9 @@ class User:
         self.regno = regno
         self.batch = batch
         self.staff_id = staff_id
+        self.willingness = (
+            willingness if willingness is not None else []
+        )  # Initialize to empty array
 
     def save(self):
         try:
@@ -65,6 +68,7 @@ class User:
                 "dept": self.dept,
                 "name": self.name,
                 "created_at": datetime.utcnow(),
+                "willingness": self.willingness,  # store willingness
             }
 
             # Add role-specific fields
@@ -80,6 +84,13 @@ class User:
         except Exception as e:
             print(f"Error in save method: {str(e)}")
             raise ValueError(str(e))
+
+    @staticmethod
+    def to_object_id(id_str):
+        try:
+            return ObjectId(id_str)
+        except:
+            return None  # Handle invalid ObjectIDs
 
     @staticmethod
     def verify_password(password, hashed):
@@ -168,16 +179,27 @@ class User:
         if name:
             query["name"] = name
         if batch:
-            query["batch"] = int(batch)
+            query["batch"] = int(batch)  # Ensure batch is an integer
+        # print("Verify Student Record Query:", query) # Debugging statement
         return student_records_collection.find_one(query) is not None
 
     def validate(self):
         try:
+            print(
+                f"Validating user: role={self.role}, staff_id={self.staff_id}, dept={self.dept}, regno={self.regno}, batch={self.batch}"
+            )  # VERY IMPORTANT LOG
+
+            # --- Email Uniqueness Check (ALL ROLES) ---
+            existing_user = users_collection.find_one({"email": self.email})
+            if existing_user:
+                raise ValueError("An account with this email already exists.")
+
             if self.role.lower() == "staff":
                 if not self.staff_id:
                     raise ValueError("Staff ID is required for staff registration")
 
                 # Verify staff ID format (e.g., CSE01)
+                print(f"staff_id: {self.staff_id}")
                 if not (
                     len(self.staff_id) >= 4
                     and self.staff_id.startswith(self.dept)
@@ -201,7 +223,40 @@ class User:
                         "A staff member already exists for this department"
                     )
 
-            # Rest of the validation...
+            # --- Student/Alumni Validation (CRUCIAL) ---
+            elif self.role.lower() in ["student", "alumni"]:
+                if not self.regno:
+                    raise ValueError("Register Number is required for students/alumni")
+                if not self.batch:
+                    raise ValueError("Batch is required for students/alumni")
+                # Added extra check for None values before calling verify_student_record
+                if self.regno is None or self.dept is None:
+                    raise ValueError("regno and dept cannot be None for student/alumni")
+                # Added Type Conversion.
+                if self.batch is not None:
+                    try:
+                        batch_value = int(self.batch)
+                    except ValueError:
+                        raise ValueError("Batch must be a valid number")
+                else:
+                    raise ValueError("Batch cannot be None")
+
+                # --- Registration Number Uniqueness Check (Students/Alumni) ---
+                existing_regno = users_collection.find_one({"regno": self.regno})
+                if existing_regno:
+                    raise ValueError(
+                        "A user with this registration number already exists."
+                    )
+
+                if not User.verify_student_record(
+                    regno=self.regno,
+                    dept=self.dept,
+                    name=self.name,  # Optional, but good to include
+                    batch=batch_value,  # Use the converted integer value
+                    is_alumni=self.role.lower() == "alumni",
+                ):
+
+                    raise ValueError("Student/Alumni record not found.")
 
         except Exception as e:
             print(f"Error in validate method: {str(e)}")
@@ -386,6 +441,25 @@ class NewsEvent:
             return None
 
     @staticmethod
+    def get_by_author(author_email):
+        """Fetches news/events by author's email."""
+        try:
+            items = list(news_events_collection.find({"author_id": author_email}))
+            for item in items:
+                item["_id"] = str(item["_id"])  # Convert ObjectId to string
+                if "event_date" in item and item["event_date"]:
+                    if isinstance(item["event_date"], str):
+                        pass  # NOOP - its allready string
+                    elif isinstance(item["event_date"], datetime):
+                        item["event_date"] = item["event_date"].isoformat()
+                if "created_at" in item:
+                    item["created_at"] = item["created_at"].isoformat()
+            return items
+        except Exception as e:
+            print(f"Error in NewsEvent.get_by_author: {e}")
+            return []
+
+    @staticmethod
     def update(id, data):
         try:
             result = news_events_collection.update_one(
@@ -470,6 +544,11 @@ class Project:
                     project["created_at"] = project["created_at"].isoformat()
                 if "updated_at" in project:
                     project["updated_at"] = project["updated_at"].isoformat()
+            if "collaborators" in project:
+                # Convert each collaborator id to string and fetch details if needed
+                project["collaborators"] = [str(c) for c in project["collaborators"]]
+            else:
+                project["collaborators"] = []
             return project
         except Exception as e:
             print(f"Error getting project: {str(e)}")
@@ -669,7 +748,7 @@ class MentorshipRequest:
                         "created_by": str(project["created_by"]),  # Add this!
                     }
                     owner = users_collection.find_one(
-                        {"_id": Project.to_object_id(project["created_by"])}
+                        {"_id": ObjectId(project["created_by"])}
                     )
                     if owner:
                         request["project"]["owner_name"] = owner.get("name")
@@ -1264,3 +1343,61 @@ class Analytics:  # New class
             },  # Optional: Rename fields
         ]
         return list(projects_collection.aggregate(pipeline))
+
+    @staticmethod
+    def get_all_users(
+        role=None,
+        dept=None,
+        batch=None,
+        regno=None,
+        created_at=None,
+        page=1,
+        per_page=10,
+    ):
+        """
+        Fetches all users with optional filters and pagination.
+        """
+        query = {}
+        if role:
+            query["role"] = role
+        if dept:
+            query["dept"] = dept
+        if batch:
+            query["batch"] = batch
+        if regno:
+            query["regno"] = regno
+        if created_at:
+            query["created_at"] = {
+                "$gte": datetime.fromisoformat(created_at)
+            }  # Filter by created_at
+
+        skip = (page - 1) * per_page
+        users = list(users_collection.find(query).skip(skip).limit(per_page))
+
+        for user in users:
+            user["_id"] = str(user["_id"])
+            if "password" in user:
+                del user["password"]
+
+        total_users = users_collection.count_documents(query)
+        total_pages = (total_users + per_page - 1) // per_page
+
+        return {
+            "users": users,
+            "total_users": total_users,
+            "total_pages": total_pages,
+            "current_page": page,
+        }
+
+    @staticmethod
+    def get_alumni_by_willingness(willingness_filter=""):
+        """Fetches alumni, optionally filtered by willingness."""
+        query = {"role": "alumni"}
+        if willingness_filter:
+            query["willingness"] = willingness_filter  # Matches *any* in array
+
+        alumni = list(users_collection.find(query))
+        for a in alumni:
+            a["_id"] = str(a["_id"])  # Convert ObjectId to str
+            a.pop("password", None)  # Remove sensitive data
+        return alumni

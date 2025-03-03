@@ -135,13 +135,32 @@ def signup():
         regno = None
         batch = None
         staff_id = None
+        willingness = []  # Initialize willingness
 
         # Set role-specific fields
         if role.lower() == "staff":
             staff_id = data.get("staff_id")
         else:
             regno = data.get("regno")
-            batch = data.get("batch")
+            # Ensure 'batch' is an integer, and handle potential errors
+            try:
+                batch = int(data.get("batch"))  # Try converting to int
+            except (ValueError, TypeError):  # Catch potential errors
+                return jsonify({"message": "Invalid batch.  Must be a number."}), 400
+            if role.lower() == "alumni":
+                willingness = data.get(
+                    "willingness", []
+                )  # Get willingness, default to []
+
+        # --- Input Validation ---
+        if not all([name, email, password, dept]):
+            return jsonify({"message": "Missing required fields"}), 400
+        if role.lower() == "student" or role.lower() == "alumni":
+            if not regno or not batch:
+                return jsonify({"message": f"{field} is required"}), 400
+        elif role.lower() == "staff":
+            if not staff_id:
+                return jsonify({"message": "Staff ID is required for staff"}), 400
 
         # Create and save user
         user = User(
@@ -153,14 +172,17 @@ def signup():
             regno=regno,
             batch=batch,
             staff_id=staff_id,
+            willingness=willingness,  # Pass willingness
         )
-
+        # Validate the user before saving
+        user.validate()  # added validation
         user.save()
         return jsonify({"message": "User created successfully"}), 201
 
-    except ValueError as e:
-        return jsonify({"message": str(e)}), 400
+    except ValueError as e:  # Catch validation errors from user.validate()
+        return jsonify({"message": str(e)}), 400  # Return specific error
     except Exception as e:
+        print(f"Signup error: {str(e)}")  # More detailed logging
         return jsonify({"message": "An error occurred during signup"}), 500
 
 
@@ -657,19 +679,40 @@ def update_project(project_id):
     try:
         current_user = get_jwt_identity()
         user = User.find_by_email(current_user)
-
-        # Verify project exists and user has access
         project = projects_collection.find_one({"_id": ObjectId(project_id)})
         if not project:
             return jsonify({"message": "Project not found"}), 404
 
-        if project["created_by"] != user["_id"]:
-            return jsonify({"message": "Unauthorized"}), 403
+        if str(project["created_by"]) != str(user["_id"]):
+            return (
+                jsonify(
+                    {"message": "Unauthorized: Only the owner can edit this project."}
+                ),
+                403,
+            )
 
-        # Update the project
         data = request.get_json()
-        projects_collection.update_one({"_id": ObjectId(project_id)}, {"$set": data})
-        return jsonify({"message": "Project updated successfully"}), 200
+        # Optionally: sanitize or restrict certain fields
+        allowed_fields = [
+            "title",
+            "abstract",
+            "tech_stack",
+            "github_link",
+            "modules",
+            "progress",
+        ]
+        update_data = {k: v for k, v in data.items() if k in allowed_fields}
+
+        if not update_data:
+            return jsonify({"message": "No valid fields provided for update."}), 400
+
+        result = projects_collection.update_one(
+            {"_id": ObjectId(project_id)}, {"$set": update_data}
+        )
+        if result.modified_count > 0:
+            return jsonify({"message": "Project updated successfully"}), 200
+        else:
+            return jsonify({"message": "Project not updated."}), 400
 
     except Exception as e:
         return jsonify({"message": "Failed to update project"}), 500
@@ -1406,6 +1449,114 @@ def get_analytics():
     except Exception as e:
         print(f"Error in analytics route: {str(e)}")
         return jsonify({"message": "An error occurred while fetching analytics"}), 500
+
+
+# app.py
+@app.route("/analytics/users", methods=["GET"])
+@jwt_required()
+def get_users_list():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Get query parameters for filtering
+        role = request.args.get("role")
+        dept = request.args.get("dept")
+        batch = request.args.get("batch")
+        regno = request.args.get("regno")
+        created_at = request.args.get("created_at")  # Get created_at filter
+        page = int(request.args.get("page", 1))  # Default to page 1
+        per_page = int(request.args.get("per_page", 10))  # Default 10 per page
+
+        users_data = Analytics.get_all_users(
+            role, dept, batch, regno, created_at, page, per_page
+        )
+
+        return jsonify(users_data), 200
+
+    except Exception as e:
+        print(f"Error in get_users_list route: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching user list"}), 500
+
+
+@app.route("/alumni/willingness", methods=["GET"])
+@jwt_required()
+def get_alumni_willingness():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Authorization check: only staff or admin can access.
+        if user["role"].lower() not in ["staff", "admin"]:
+            return jsonify({"message": "Unauthorized"}), 403
+
+        # Get filter parameter
+        willingness_filter = request.args.get("willingness", default="", type=str)
+
+        alumni_data = Analytics.get_alumni_by_willingness(willingness_filter)
+        return jsonify(alumni_data), 200
+
+    except Exception as e:
+        print(f"Error in /alumni/willingness: {str(e)}")
+        return (
+            jsonify({"message": "An error occurred while fetching alumni data."}),
+            500,
+        )
+
+
+@app.route("/alumni/<string:alumnus_id>/mentees", methods=["GET"])
+@jwt_required()
+def get_alumni_mentees(alumnus_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)  # Use email consistently
+        # Basic authorization check:
+        if user["role"].lower() not in [
+            "staff",
+            "admin",
+            "alumni",
+        ]:  # alumni can also see
+            return jsonify({"message": "Unauthorized"}), 403
+
+        # check weather the alumni is accessing other alumni details.
+        if user["role"] == "alumni" and user["email"] != alumnus_id:
+            return jsonify({"message": "Unauthorized"}), 403
+
+        mentees_data = MentorshipRequest.get_mentees_by_mentor(
+            alumnus_id
+        )  # Pass email (alumnus_id)
+
+        return jsonify(mentees_data), 200
+    except Exception as e:
+        print(f"Error in /alumni/<alumnus_id>/mentees: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching mentees."}), 500
+
+
+@app.route("/alumni/<string:alumnus_id>/posts", methods=["GET"])
+@jwt_required()
+def get_alumni_posts(alumnus_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        # Basic authorization
+        if user["role"].lower() not in [
+            "staff",
+            "admin",
+            "alumni",
+        ]:  # alumni can also view it
+            return jsonify({"message": "Unauthorized"}), 403
+        # added condition to check weather the alumni user requesting for details is same.
+        if user["role"].lower() == "alumni" and user["email"] != alumnus_id:
+            return jsonify({"message": "Unauthorized"}), 403
+
+        posts = NewsEvent.get_by_author(alumnus_id)  # Pass author's email
+
+        return jsonify(posts), 200
+
+    except Exception as e:
+        print(f"Error in /alumni/<alumnus_id>/posts: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching posts."}), 500
 
 
 if __name__ == "__main__":

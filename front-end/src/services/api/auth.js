@@ -1,3 +1,4 @@
+// src/services/api/auth.js
 import axios from '../axios';
 
 export const authService = {
@@ -6,12 +7,12 @@ export const authService = {
             const response = await axios.post('/login', credentials);
             if (response.data && response.data.access_token) {
                 localStorage.setItem('access_token', response.data.access_token);
-                localStorage.setItem('refresh_token', response.data.refresh_token);
+                localStorage.setItem('refresh_token', response.data.refresh_token); // Make sure this matches your backend
             }
             return response;
         } catch (error) {
             console.error('Login error:', error);
-            throw error;
+            throw error; // Re-throw the error so the component can handle it
         }
     },
 
@@ -20,8 +21,8 @@ export const authService = {
             const response = await axios.post('/signup', userData);
             return response;
         } catch (error) {
-            console.error('Signup error:', error);
-            throw error;
+            console.error('Signup error:', error); // Log the full error
+            throw error; // Re-throw the error so calling code can handle.
         }
     },
 
@@ -44,4 +45,4 @@ export const authService = {
             throw error;
         }
     }
-}; 
+};

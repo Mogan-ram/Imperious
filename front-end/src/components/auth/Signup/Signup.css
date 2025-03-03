@@ -275,3 +275,71 @@
         width: 100%;
     }
 }
+
+/* Add these styles to your Signup.css file */
+
+.willingness-checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.willingness-option {
+    cursor: pointer;
+}
+
+.willingness-card {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    border: 1px solid #dee2e6;
+}
+
+.willingness-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.willingness-card.selected {
+    background-color: #e8f4ff;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 1px #0d6efd;
+}
+
+.checkbox-icon {
+    margin-right: 10px;
+    color: #0d6efd;
+    font-size: 1.2rem;
+}
+
+.password-input-container {
+    position: relative;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+}
+
+.password-toggle-btn:hover {
+    color: #0d6efd;
+}
+
+/* Improve responsiveness */
+@media (max-width: 768px) {
+    .willingness-checkbox-group {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .willingness-checkbox-group {
+        grid-template-columns: 1fr;
+    }
+}
