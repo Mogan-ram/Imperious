@@ -1,0 +1,151 @@
+/* components/analytics/JobAnalytics.css */
+
+.job-analytics {
+    padding: 20px 0;
+}
+
+.analytics-section-title {
+    font-weight: 700;
+    color: #2d3748;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 12px;
+}
+
+.summary-card {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    height: 100%;
+    background-color: #fff;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.total-jobs .summary-icon {
+    background-color: rgba(66, 153, 225, 0.2);
+    color: #3182ce;
+}
+
+.active-jobs .summary-icon {
+    background-color: rgba(72, 187, 120, 0.2);
+    color: #38a169;
+}
+
+.job-types .summary-icon {
+    background-color: rgba(237, 137, 54, 0.2);
+    color: #dd6b20;
+}
+
+.job-locations .summary-icon {
+    background-color: rgba(159, 122, 234, 0.2);
+    color: #805ad5;
+}
+
+.summary-card .card-body {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+}
+
+.summary-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 20px;
+    flex-shrink: 0;
+}
+
+.summary-data h3 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #2d3748;
+}
+
+.summary-label {
+    font-size: 16px;
+    color: #718096;
+    margin-bottom: 0;
+}
+
+.chart-card,
+.recent-jobs-card {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.chart-card .card-header,
+.recent-jobs-card .card-header {
+    background-color: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 20px;
+}
+
+.chart-card .card-header h4,
+.recent-jobs-card .card-header h4 {
+    margin-bottom: 0;
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 18px;
+}
+
+.chart-card .card-body,
+.recent-jobs-card .card-body {
+    padding: 20px;
+}
+
+.job-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: #ebf4ff;
+    color: #3182ce;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-right: 4px;
+    white-space: nowrap;
+}
+
+.recent-jobs-card table {
+    margin-bottom: 0;
+}
+
+.recent-jobs-card th {
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom-width: 2px;
+}
+
+.recent-jobs-card td {
+    vertical-align: middle;
+}
+
+@media (max-width: 992px) {
+    .summary-card .card-body {
+        padding: 15px;
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        margin-right: 15px;
+    }
+
+    .summary-data h3 {
+        font-size: 24px;
+    }
+
+    .summary-label {
+        font-size: 14px;
+    }
+}

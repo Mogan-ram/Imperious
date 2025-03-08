@@ -1,0 +1,166 @@
+/* FeedCreate.css */
+
+.create-feed-card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.post-tabs {
+    display: flex;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 15px;
+}
+
+.post-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px 5px;
+    cursor: pointer;
+    color: #6c757d;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.post-tab:hover {
+    color: #4e73df;
+    background-color: #f8f9fa;
+}
+
+.post-tab.active {
+    color: #4e73df;
+    border-bottom: 2px solid #4e73df;
+}
+
+.tab-icon {
+    font-size: 16px;
+}
+
+.post-author {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.author-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #4e73df;
+    color: white;
+    font-weight: bold;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-right: 12px;
+}
+
+.create-post-textarea {
+    border: none;
+    resize: none;
+    font-size: 16px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+}
+
+.create-post-textarea:focus {
+    box-shadow: none;
+    background-color: #f8f9fa;
+}
+
+.post-actions {
+    align-items: center;
+}
+
+.post-attachments {
+    display: flex;
+    gap: 10px;
+}
+
+.attachment-btn {
+    color: #6c757d;
+    padding: 6px;
+    border-radius: 50%;
+}
+
+.attachment-btn:hover {
+    background-color: #f0f0f0;
+    color: #4e73df;
+}
+
+.post-submit-btn {
+    border-radius: 20px;
+    padding: 6px 20px;
+    font-weight: 500;
+}
+
+.upload-placeholder {
+    border: 2px dashed #ced4da;
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    transition: all 0.2s ease;
+}
+
+.upload-placeholder:hover {
+    border-color: #4e73df;
+    background-color: #f0f4ff;
+}
+
+.upload-icon {
+    font-size: 30px;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+.upload-text {
+    margin-bottom: 0;
+    color: #6c757d;
+}
+
+.link-input {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px 15px;
+}
+
+.link-input:focus {
+    box-shadow: none;
+    border-color: #4e73df;
+}
+
+@media (max-width: 576px) {
+    .tab-label {
+        display: none;
+    }
+
+    .post-tab {
+        padding: 12px 5px;
+    }
+
+    .tab-icon {
+        font-size: 18px;
+    }
+
+    .post-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .post-attachments,
+    .col.text-end {
+        text-align: center !important;
+    }
+
+    .post-submit-btn {
+        width: 100%;
+    }
+}

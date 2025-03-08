@@ -1,0 +1,82 @@
+/* components/jobs/JobForm.css */
+
+.job-form-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.form-title {
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 8px;
+}
+
+.form-subtitle {
+    color: #718096;
+    font-size: 1.1rem;
+}
+
+.form-card {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 8px;
+}
+
+.job-type-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.job-type-checkbox {
+    margin-right: 12px;
+    min-width: 120px;
+}
+
+/* Style the React Quill editor */
+.quill {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+}
+
+.quill .ql-toolbar {
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ced4da;
+}
+
+.quill .ql-container {
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    background-color: #fff;
+    min-height: 120px;
+}
+
+.quill .ql-editor {
+    min-height: 120px;
+}
+
+/* Form validation styling */
+.is-invalid .quill {
+    border-color: #dc3545;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .job-type-checkboxes {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .job-type-checkbox {
+        margin-right: 0;
+        min-width: auto;
+    }
+}

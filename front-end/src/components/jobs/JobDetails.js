@@ -1,166 +1,328 @@
-// src/components/Jobs/JobDetails.js
+// components/jobs/JobDetails.js
 import React, { useState, useEffect } from 'react';
-import { Container, Card, Button, Badge } from 'react-bootstrap';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from 'react-bootstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faLocationDot,
+    faBriefcase,
+    faClock,
+    faMoneyBillWave,
+    faCalendarAlt,
+    faArrowLeft,
+    faBuilding,
+    faUser,
+    faEnvelope
+} from '@fortawesome/free-solid-svg-icons';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { jobService } from '../../services/api/jobs';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'react-toastify';
-import LoadingSpinner from '../common/LoadingSpinner';
+import DOMPurify from 'dompurify';
 import './JobDetails.css';
-import { FaExternalLinkAlt, FaTrash, FaEdit } from 'react-icons/fa';
 
 const JobDetails = () => {
     const { id } = useParams();
-    const [job, setJob] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchJobDetails = async () => {
-            try {
-                const response = await jobService.getJobById(id);
-                setJob(response);
-            } catch (error) {
-                console.error('Error fetching job details:', error);
-                setError('Failed to load job details.');
-                toast.error('Failed to load job details.');
-            } finally {
-                setLoading(false);
-            }
-        };
+    const [job, setJob] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+    // Format date function
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+
+    // Check if user can edit the job (alumni or posted by the user)
+    const canEdit = () => {
+        if (!user || !job) return false;
+        return (
+            user.role === 'alumni' &&
+            job.author &&
+            job.author.email === user.email
+        );
+    };
+
+    // Format deadline
+    const formatDeadline = (dateString) => {
+        if (!dateString) return 'Open until filled';
+        const deadline = new Date(dateString);
+        const now = new Date();
+
+        if (deadline < now) {
+            return 'Application closed';
+        }
+
+        return formatDate(dateString);
+    };
+
+    // Fetch job details
+    const fetchJobDetails = async () => {
+        setLoading(true);
+        try {
+            const data = await jobService.getJobById(id);
+            setJob(data);
+            setLoading(false);
+        } catch (err) {
+            console.error('Error fetching job details:', err);
+            setError('Failed to load job details. Please try again later.');
+            setLoading(false);
+        }
+    };
+
+    // Handle job deletion
+    const handleDeleteJob = async () => {
+        try {
+            await jobService.deleteJob(id);
+            navigate('/jobs', {
+                state: { message: 'Job deleted successfully', variant: 'success' }
+            });
+        } catch (err) {
+            console.error('Error deleting job:', err);
+            setError('Failed to delete job. Please try again later.');
+        }
+    };
+
+    useEffect(() => {
         fetchJobDetails();
     }, [id]);
 
-    const handleApply = () => {
-        if (job.apply_link) {
-            window.open(job.apply_link, '_blank', 'noopener,noreferrer'); // Good practice!
-        } else {
-            toast.info("Application details are provided in how to apply section.");
-        }
-    };
-    const handleEdit = () => {
-        navigate(`/jobs/${id}/edit`);
-    };
-
-    const handleDelete = async () => {
-        if (window.confirm('Are you sure you want to delete this job?')) {
-            try {
-                await jobService.deleteJob(id);
-                toast.success('Job deleted successfully!');
-                navigate('/jobs'); // Redirect to job list
-            } catch (error) {
-                console.error('Error deleting job:', error);
-                toast.error('Failed to delete job.');
-            }
-        }
-    };
-    const canEditOrDelete = () => {
-        return user && job && (user.role === 'alumni' || user.role === 'staff') && user._id === job.posted_by;
-    };
-
-    if (loading) {
-        return <LoadingSpinner />;
-    }
-
-    if (error) {
-        return <Container className="py-4"><p>{error}</p></Container>;
-    }
-
-    if (!job) {
-        return <Container className="py-4"><p>Job not found.</p></Container>;
-    }
-    const getRoleBadgeVariant = (role) => {
-        switch (role) {
-            case 'staff':
-                return 'primary'; // Blue
-            case 'alumni':
-                return 'success'; // Green
-            case 'student':
-                return 'info';    // Light blue
-            default:
-                return 'secondary'; // Gray
-        }
-    };
-
     return (
-        <Container className="py-4">
-            <Card className="job-details-card">
-                <Card.Body>
-                    <Card.Title>{job.title}</Card.Title>
-                    <Card.Subtitle className="mb-2 text-muted">
-                        {job.company} - {job.location}
-                    </Card.Subtitle>
-                    <div className='mb-2'>
-                        {job.job_type &&
-                            job.job_type.map((type, index) => (
-                                <Badge key={index} pill bg="primary" className="me-1">
-                                    {type}
-                                </Badge>
-                            ))}
-                    </div>
-                    {job.salary_min && (
-                        <Card.Text>
-                            <strong>Salary:</strong> ${job.salary_min}
-                            {job.salary_max && ` - $${job.salary_max}`}
-                        </Card.Text>
-                    )}
-                    <Card.Text>
-                        <strong>Description:</strong>
-                        <div dangerouslySetInnerHTML={{ __html: job.description.replace(/\n/g, "<br />") }} />
-                    </Card.Text>
-                    <Card.Text>
-                        <strong>Requirements:</strong>
-                        {/* Display requirements as it is */}
-                        <div dangerouslySetInnerHTML={{ __html: job.requirements.replace(/\n/g, "<br />") }} />
-                    </Card.Text>
-                    <Card.Text>
-                        <strong>How to Apply:</strong>
-                        <div dangerouslySetInnerHTML={{ __html: job.how_to_apply.replace(/\n/g, "<br />") }} />
-                    </Card.Text>
-                    {job.deadline && (
-                        <Card.Text>
-                            <strong>Deadline:</strong> {new Date(job.deadline).toLocaleDateString()}
-                        </Card.Text>
-                    )}
+        <Container className="job-details-container py-5">
+            <Row className="mb-4">
+                <Col>
+                    <Link to="/jobs" className="back-link">
+                        <FontAwesomeIcon icon={faArrowLeft} className="me-2" />
+                        Back to Job Listings
+                    </Link>
+                </Col>
+            </Row>
 
-                    {/* Display Posted by with Author's Name */}
-                    {job.author && (
-                        <Card.Text>
-                            <strong>Posted by:</strong> {job.author.name}
-                            {/* Display role as a badge */}
-                            {job.author.role && (
-                                <Badge pill bg={getRoleBadgeVariant(job.author.role)} className="ms-2">
-                                    {job.author.role}
-                                </Badge>
+            {loading ? (
+                <div className="text-center py-5">
+                    <Spinner animation="border" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </Spinner>
+                </div>
+            ) : error ? (
+                <Alert variant="danger">{error}</Alert>
+            ) : job ? (
+                <>
+                    <Row>
+                        <Col lg={8}>
+                            <Card className="job-header-card mb-4">
+                                <Card.Body>
+                                    <div className="d-flex">
+                                        <div className="company-logo me-4">
+                                            <div className="company-logo-placeholder">
+                                                {job.company ? job.company.charAt(0).toUpperCase() : 'J'}
+                                            </div>
+                                        </div>
+                                        <div className="job-header-info">
+                                            <h1 className="job-detail-title">{job.title}</h1>
+                                            <h4 className="company-detail-name mb-3">{job.company}</h4>
+
+                                            <div className="job-meta-details mb-3">
+                                                <div className="job-meta-item">
+                                                    <FontAwesomeIcon icon={faLocationDot} className="me-2" />
+                                                    {job.location}
+                                                </div>
+
+                                                {job.job_type && job.job_type.map((type, index) => (
+                                                    <div key={index} className="job-meta-item">
+                                                        <FontAwesomeIcon icon={faBriefcase} className="me-2" />
+                                                        {type}
+                                                    </div>
+                                                ))}
+
+                                                <div className="job-meta-item">
+                                                    <FontAwesomeIcon icon={faClock} className="me-2" />
+                                                    Posted on {formatDate(job.created_at)}
+                                                </div>
+
+                                                {job.deadline && (
+                                                    <div className="job-meta-item">
+                                                        <FontAwesomeIcon icon={faCalendarAlt} className="me-2" />
+                                                        Apply by {formatDeadline(job.deadline)}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {(job.salary_min || job.salary_max) && (
+                                                <div className="job-detail-salary mb-3">
+                                                    <FontAwesomeIcon icon={faMoneyBillWave} className="me-2" />
+                                                    {job.salary_min && job.salary_max ? (
+                                                        <>₹{job.salary_min.toLocaleString()} - ₹{job.salary_max.toLocaleString()}</>
+                                                    ) : job.salary_min ? (
+                                                        <>From ₹{job.salary_min.toLocaleString()}</>
+                                                    ) : job.salary_max ? (
+                                                        <>Up to ₹{job.salary_max.toLocaleString()}</>
+                                                    ) : null}
+                                                    {job.salary_period && <span className="salary-period"> / {job.salary_period}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Card.Body>
+                            </Card>
+
+                            <Card className="job-description-card mb-4">
+                                <Card.Body>
+                                    <h3 className="section-title">Job Description</h3>
+                                    <div
+                                        className="job-description-content"
+                                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }}
+                                    ></div>
+                                </Card.Body>
+                            </Card>
+
+                            {job.requirements && (
+                                <Card className="job-requirements-card mb-4">
+                                    <Card.Body>
+                                        <h3 className="section-title">Requirements</h3>
+                                        <div
+                                            className="job-requirements-content"
+                                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.requirements) }}
+                                        ></div>
+                                    </Card.Body>
+                                </Card>
                             )}
-                        </Card.Text>
-                    )}
 
-                    <div className="d-flex justify-content-end gap-2">
-                        {/* Apply Button (only if apply_link exists)*/}
-                        {job.apply_link && (
-                            <Button variant="success" onClick={handleApply}>
-                                Apply <FaExternalLinkAlt className='ms-1' />
-                            </Button>
-                        )}
+                            {job.how_to_apply && (
+                                <Card className="job-apply-card mb-4">
+                                    <Card.Body>
+                                        <h3 className="section-title">How to Apply</h3>
+                                        <div
+                                            className="job-apply-content"
+                                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.how_to_apply) }}
+                                        ></div>
+                                    </Card.Body>
+                                </Card>
+                            )}
+                        </Col>
 
-                        {/* Edit and Delete buttons - only visible to authorized users */}
-                        {canEditOrDelete() && (
-                            <>
-                                <Button variant="outline-primary" onClick={handleEdit} size="sm">
-                                    <FaEdit />
-                                </Button>
-                                <Button variant="outline-danger" onClick={handleDelete} size="sm">
-                                    <FaTrash />
-                                </Button>
-                            </>
-                        )}
-                    </div>
-                </Card.Body>
-            </Card>
+                        <Col lg={4}>
+                            {/* Apply for Job Section */}
+                            <Card className="job-apply-action-card mb-4">
+                                <Card.Body>
+                                    <h4 className="mb-3">Interested in this job?</h4>
+
+                                    {job.deadline && new Date(job.deadline) < new Date() ? (
+                                        <Alert variant="warning">
+                                            Application deadline has passed.
+                                        </Alert>
+                                    ) : (
+                                        <>
+                                            {job.apply_link ? (
+                                                <Button
+                                                    href={job.apply_link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    variant="primary"
+                                                    size="lg"
+                                                    className="w-100"
+                                                >
+                                                    Apply Now
+                                                </Button>
+                                            ) : (
+                                                <p className="text-muted">
+                                                    Please follow the application instructions in the "How to Apply" section.
+                                                </p>
+                                            )}
+                                        </>
+                                    )}
+                                </Card.Body>
+                            </Card>
+
+                            {/* Company Info */}
+                            <Card className="company-info-card mb-4">
+                                <Card.Body>
+                                    <h4 className="mb-3">Company Information</h4>
+                                    <p className="company-info-item">
+                                        <FontAwesomeIcon icon={faBuilding} className="me-2" />
+                                        {job.company}
+                                    </p>
+                                    <p className="company-info-item">
+                                        <FontAwesomeIcon icon={faLocationDot} className="me-2" />
+                                        {job.location}
+                                    </p>
+                                </Card.Body>
+                            </Card>
+
+                            {/* Job Posted By */}
+                            {job.author && (
+                                <Card className="job-author-card">
+                                    <Card.Body>
+                                        <h4 className="mb-3">Posted By</h4>
+                                        <p className="author-info-item">
+                                            <FontAwesomeIcon icon={faUser} className="me-2" />
+                                            {job.author.name}
+                                        </p>
+                                        {job.author.dept && (
+                                            <p className="author-info-item">
+                                                <FontAwesomeIcon icon={faBuilding} className="me-2" />
+                                                {job.author.dept}
+                                            </p>
+                                        )}
+                                        <p className="author-info-item">
+                                            <FontAwesomeIcon icon={faEnvelope} className="me-2" />
+                                            {job.author.email}
+                                        </p>
+                                    </Card.Body>
+                                </Card>
+                            )}
+
+                            {/* Admin Controls - only visible to job author or staff */}
+                            {canEdit() && (
+                                <Card className="admin-controls-card mt-4">
+                                    <Card.Body>
+                                        <h4 className="mb-3">Admin Controls</h4>
+                                        <div className="d-grid gap-2">
+                                            <Link to={`/jobs/${job._id}/edit`} className="btn btn-warning">
+                                                Edit Job
+                                            </Link>
+                                            {!showDeleteConfirm ? (
+                                                <Button
+                                                    variant="danger"
+                                                    onClick={() => setShowDeleteConfirm(true)}
+                                                >
+                                                    Delete Job
+                                                </Button>
+                                            ) : (
+                                                <div className="confirm-delete-container mt-2">
+                                                    <p className="text-danger mb-2">Are you sure you want to delete this job?</p>
+                                                    <div className="d-flex gap-2">
+                                                        <Button
+                                                            variant="outline-secondary"
+                                                            onClick={() => setShowDeleteConfirm(false)}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                        <Button
+                                                            variant="danger"
+                                                            onClick={handleDeleteJob}
+                                                        >
+                                                            Confirm Delete
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+                            )}
+                        </Col>
+                    </Row>
+                </>
+            ) : (
+                <Alert variant="warning">Job not found or has been removed.</Alert>
+            )}
         </Container>
     );
 };

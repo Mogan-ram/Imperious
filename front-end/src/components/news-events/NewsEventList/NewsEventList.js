@@ -68,7 +68,22 @@ const NewsEventList = ({ type }) => {
     }
 
     if (!items || items.length === 0) {
-        return <div className="text-center">No items found</div>;
+        return (
+            <div className="container py-4">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h2>{type === 'news' ? 'News' : 'Events'}</h2>
+                    {user && ['staff', 'alumni'].includes(user.role?.toLowerCase()) && (
+                        <Link to={`/news-events/create?type=${type}`} className="btn btn-primary">
+                            Create {type === 'news' ? 'News' : 'Event'}
+                        </Link>
+                    )}
+                </div>
+                <div className="alert alert-info text-center p-5">
+                    <h4>No {type} found</h4>
+                    <p>Be the first to create {type === 'news' ? 'a news item' : 'an event'}!</p>
+                </div>
+            </div>
+        );
     }
     const getRoleBadgeVariant = (role) => {
         switch (role) {

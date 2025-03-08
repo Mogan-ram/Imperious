@@ -1,0 +1,128 @@
+/* FeedItem.css */
+
+.feed-item-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 20px;
+}
+
+.feed-item-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.feed-author {
+    display: flex;
+    align-items: center;
+}
+
+.author-avatar {
+    width: 45px;
+    height: 45px;
+    background-color: #4e73df;
+    color: white;
+    font-weight: bold;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-right: 12px;
+}
+
+.author-name {
+    margin-bottom: 3px;
+    font-weight: 600;
+}
+
+.post-date {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.feed-actions .dropdown-toggle::after {
+    display: none;
+}
+
+.feed-actions .dropdown-toggle {
+    color: #6c757d;
+    padding: 5px;
+}
+
+.feed-actions .dropdown-toggle:hover {
+    color: #4e73df;
+}
+
+.feed-content {
+    margin-bottom: 15px;
+}
+
+.content-text {
+    margin-bottom: 0;
+    white-space: pre-line;
+    line-height: 1.5;
+}
+
+.feed-footer {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.interaction-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.interaction-btn {
+    color: #6c757d;
+    padding: 5px 10px;
+    border-radius: 20px;
+    text-decoration: none;
+}
+
+.interaction-btn:hover {
+    background-color: #f8f9fa;
+    color: #4e73df;
+}
+
+.interaction-stats {
+    display: flex;
+    gap: 15px;
+}
+
+.stats-item {
+    color: #6c757d;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.stats-icon {
+    margin-right: 5px;
+    font-size: 12px;
+}
+
+/* Responsive styles */
+@media (max-width: 576px) {
+    .interaction-buttons {
+        flex-wrap: wrap;
+    }
+
+    .author-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+}

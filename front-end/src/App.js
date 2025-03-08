@@ -1,37 +1,59 @@
-import React from 'react';
+// Keep these imports
+import React, { Suspense, useEffect } from 'react'; // Add Suspense import
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext'; // Import useAuth
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from './components/layout/Header/Header';
 import Signin from './components/auth/Signin/Signin';
 import Signup from './components/auth/Signup/Signup';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import Profile from './components/profile/Profile';
-import FeedList from './components/feed/FeedList/FeedList';
-import NewsList from './components/news-events/NewsList/NewsList';
-import EventList from './components/news-events/EventList/EventList';
-import NewsEventForm from './components/news-events/NewsEventForm/NewsEventForm';
-import ProjectForm from './components/projects/ProjectForm/ProjectForm';
-import MyProjects from './components/projects/MyProjects/MyProjects';
-import MentorshipRequest from './components/mentorship/MentorshipRequest';
-import Collaborations from './components/collaborations/Collaborations';
-import JobList from './components/jobs/JobList';
-import JobForm from './components/jobs/JobForm';
-import JobDetails from './components/jobs/JobDetails';
-import AlumniMentorship from './components/mentorship/AlumniMentorship';
-import MyMentees from './components/mentorship/MyMentees';
-import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
+import LoadingSpinner from './components/common/LoadingSpinner'; // Make sure this is imported
 import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-
-// Styles
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/global.css';
+import CollapsibleChat from './components/messaging/CollapsibleChat';
+import MessagingPage from './components/messaging/MessagingPage';
+import socketService from './services/socketService';
+
+
+// Replace direct imports with lazy imports for larger components
+const Profile = React.lazy(() => import('./components/profile/Profile'));
+const FeedList = React.lazy(() => import('./components/feed/FeedList/FeedList'));
+const NewsList = React.lazy(() => import('./components/news-events/NewsList/NewsList'));
+const EventList = React.lazy(() => import('./components/news-events/EventList/EventList'));
+const NewsEventForm = React.lazy(() => import('./components/news-events/NewsEventForm/NewsEventForm'));
+const ProjectForm = React.lazy(() => import('./components/projects/ProjectForm/ProjectForm'));
+const MyProjects = React.lazy(() => import('./components/projects/MyProjects/MyProjects'));
+const MentorshipRequest = React.lazy(() => import('./components/mentorship/MentorshipRequest'));
+const Collaborations = React.lazy(() => import('./components/collaborations/Collaborations'));
+const JobList = React.lazy(() => import('./components/jobs/JobList'));
+const JobForm = React.lazy(() => import('./components/jobs/JobForm'));
+const JobDetails = React.lazy(() => import('./components/jobs/JobDetails'));
+const AlumniMentorship = React.lazy(() => import('./components/mentorship/AlumniMentorship'));
+const MyMentees = React.lazy(() => import('./components/mentorship/MyMentees'));
+const AnalyticsDashboard = React.lazy(() => import('./components/analytics/AnalyticsDashboard'));
+const ProjectDetail = React.lazy(() => import('./components/projects/ProjectDetail/ProjectDetail'));
 
 function App() {
   const location = useLocation();
   const showHeader = !['/signin', '/signup'].includes(location.pathname);
-  const { user } = useAuth(); // Get the user from AuthContext
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user?.email) {
+      socketService.connect(user.email);
+    } else {
+      socketService.disconnect();
+    }
+
+    return () => {
+      socketService.disconnect();
+    };
+  }, [user]);
+
+  // Show chat only on routes where user is authenticated and not on the messaging page
+  const showChat = user && location.pathname !== '/messages';
+
 
   return (
     <AuthProvider>
@@ -39,60 +61,189 @@ function App() {
         {showHeader && <Header />}
         <main>
           <Routes>
-            {/* Public Routes */}
+            {/* Public Routes - keep these without Suspense */}
             <Route path="/signin" element={<Signin />} />
             <Route path="/signup" element={<Signup />} />
 
-            {/* Protected Routes */}
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/feeds" element={<ProtectedRoute><FeedList /></ProtectedRoute>} />
-            <Route path="/news" element={<ProtectedRoute><NewsList /></ProtectedRoute>} />
-            <Route path="/events" element={<ProtectedRoute><EventList /></ProtectedRoute>} />
-            <Route path="/news-events/create" element={<ProtectedRoute><NewsEventForm /></ProtectedRoute>} />
+            {/* Protected Routes - wrap with Suspense */}
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Profile />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/feeds" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <FeedList />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/news" element={
+              <Suspense fallback={<LoadingSpinner />}>
+
+                <NewsList />
+              </Suspense>
+
+            } />
+
+            <Route path="/events" element={
+
+              <Suspense fallback={<LoadingSpinner />}>
+                <EventList />
+              </Suspense>
+
+            } />
+
+            <Route path="/news-events/create" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <NewsEventForm />
+                </Suspense>
+              </ProtectedRoute>
+            } />
 
             {/* Project Routes */}
-            <Route path="/projects/my-projects" element={<ProtectedRoute><MyProjects /></ProtectedRoute>} />
-            <Route path="/projects/create" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
-            <Route path="/projects/:id/edit" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
-            <Route path="/projects" element={<ProtectedRoute><MyProjects /></ProtectedRoute>} />
-            {/* Wrap MentorshipRequest route with Protected and Role-based check */}
+            <Route path="/projects/my-projects" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MyProjects />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/projects/create" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <ProjectForm />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/projects/:id/edit" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <ProjectForm />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MyProjects />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/projects/:id" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <ProjectDetail />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            {/* Mentorship Routes */}
             <Route path="/projects/mentorship" element={
               <ProtectedRoute>
-                {user?.role === 'student' && <MentorshipRequest />}
+                <Suspense fallback={<LoadingSpinner />}>
+                  {user?.role === 'student' && <MentorshipRequest />}
+                </Suspense>
               </ProtectedRoute>
             } />
-            <Route path="/projects/collaborations" element={<ProtectedRoute><Collaborations /></ProtectedRoute>} />
 
-            {/* Alumni Mentorship Route - Conditionally Render based on Role */}
+            <Route path="/projects/collaborations" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Collaborations />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            {/* Alumni Routes */}
             <Route path="/alumni/mentorship" element={
               <ProtectedRoute>
-                {user?.role === 'alumni' ? <AlumniMentorship /> : <div>Unauthorized</div>}
+                <Suspense fallback={<LoadingSpinner />}>
+                  {user?.role === 'alumni' ? <AlumniMentorship /> : <div>Unauthorized</div>}
+                </Suspense>
               </ProtectedRoute>
             } />
+
             <Route path="/alumni/mentees" element={
               <ProtectedRoute>
-                {user?.role === 'alumni' ? <MyMentees /> : <div>Unauthorized</div>}
+                <Suspense fallback={<LoadingSpinner />}>
+                  {user?.role === 'alumni' ? <MyMentees /> : <div>Unauthorized</div>}
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            {/* Job Routes */}
+            <Route path="/jobs" element={
+              <Suspense fallback={<LoadingSpinner />}>
+                <JobList />
+              </Suspense>
+            } />
+
+            <Route path="/jobs/create" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <JobForm />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/jobs/:id/edit" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <JobForm />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/jobs/:id" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <JobDetails />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            {/* Analytics Route */}
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AnalyticsDashboard />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/messages" element={
+              <ProtectedRoute>
+                <MessagingPage />
               </ProtectedRoute>
             } />
 
 
-            <Route path="/jobs" element={<JobList />} />
-            <Route path="/jobs/create" element={<ProtectedRoute><JobForm /></ProtectedRoute>} />
-            <Route path="/jobs/:id/edit" element={<ProtectedRoute><JobForm /></ProtectedRoute>} />
-            <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
-
-
-            <Route path="/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
-
             {/* Default route */}
-            <Route path="/" element={<ProtectedRoute><FeedList /></ProtectedRoute>} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <FeedList />
+                </Suspense>
+              </ProtectedRoute>
+            } />
           </Routes>
         </main>
+        {showChat && <CollapsibleChat />}
       </div>
       <ToastContainer position="top-right" autoClose={3000} />
     </AuthProvider>
-
   );
 }
+
 
 export default App;

@@ -1,108 +1,134 @@
-/*JobList.css*/
-/* Styles for the JobList component */
+/* components/jobs/JobList.css */
+
 .job-list-container {
-    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.job-list-title {
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 8px;
+}
+
+.job-list-subtitle {
+    color: #718096;
+    font-size: 1.1rem;
+}
+
+.search-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border: none;
+}
+
+.job-count {
+    color: #718096;
+    font-weight: 500;
 }
 
 .job-card {
-    margin-bottom: 20px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    transition: box-shadow 0.3s ease;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
 }
 
 .job-card:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
 }
 
-.job-card-body {
-    padding: 20px;
+.company-logo-placeholder {
+    width: 60px;
+    height: 60px;
+    background-color: #4299e1;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
 }
 
 .job-title {
-    font-size: 1.25rem;
-    font-weight: bold;
-    color: #0d6efd;
-    /* Bootstrap primary color for links */
+    font-weight: 600;
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+    color: #2d3748;
+}
+
+.job-title-link {
     text-decoration: none;
-    /* Remove underline from links */
-    display: block;
-    /* Make the title a block element */
-    margin-bottom: 0.5rem;
-    /* Add some space below the title */
 }
 
-/* Style the link within the title */
-.job-title a {
-    color: inherit;
-    /* Inherit color from parent (the h5) */
-    text-decoration: none;
-    /* Remove underline */
+.job-title-link:hover .job-title {
+    color: #3182ce;
 }
 
-.job-title a:hover {
-    text-decoration: underline;
-}
-
-.job-company {
+.company-name {
     font-size: 1rem;
-    color: #6c757d;
-    /* Bootstrap muted text color */
-    margin-bottom: 0.5rem;
+    color: #4a5568;
+    margin-bottom: 8px;
+}
+
+.job-details {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    color: #718096;
 }
 
 .job-location {
-    font-style: italic;
-    color: #6c757d;
-    margin-bottom: 1rem;
+    margin-right: 12px;
+}
+
+.job-type-badge {
+    padding: 6px 10px;
+    border-radius: 15px;
+    background-color: #f7fafc !important;
+    border: 1px solid #e2e8f0;
+    font-weight: 500;
+    font-size: 0.8rem;
 }
 
 .job-salary {
-    font-weight: bold;
-    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #48bb78;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
 }
 
-.job-type-badges .badge {
-    margin-right: 5px;
-    /* Add spacing between badges */
+.job-posted-date {
+    font-size: 0.9rem;
 }
 
-.job-card .card-text {
-    color: #212529;
-    /* Bootstrap body text color */
-    margin-bottom: 0.5rem;
+.job-description {
+    color: #4a5568;
+    margin-top: 12px;
+    line-height: 1.5;
 }
 
-.job-link {
-    margin-right: 10px;
-    text-decoration: none;
-}
-
-/* Pagination Styles */
-.pagination {
+.pagination-container {
+    display: flex;
     justify-content: center;
-    margin-top: 20px;
+    align-items: center;
+    gap: 6px;
 }
 
-.pagination .page-item.active .page-link {
-    background-color: #0d6efd;
-    /* Bootstrap primary color */
-    border-color: #0d6efd;
-    color: white;
-}
+@media (max-width: 768px) {
+    .job-details {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 
-.pagination .page-link {
-    color: #0d6efd;
-    /* Bootstrap primary color */
-    border: 1px solid #dee2e6;
-    /* Bootstrap default border color */
-}
+    .job-location {
+        margin-bottom: 8px;
+    }
 
-.pagination .page-link:hover {
-    color: #0a58ca;
-    /* Darker shade of primary on hover */
-    background-color: #e9ecef;
-    /* Light gray background on hover */
-    border-color: #dee2e6;
-    /* Bootstrap default border color */
+    .job-type-badge {
+        margin-left: 0 !important;
+        margin-bottom: 4px;
+    }
 }

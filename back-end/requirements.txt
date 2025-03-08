@@ -4,6 +4,11 @@ flask-bcrypt
 flask-jwt-extended
 PyJWT
 pymongo
+pydantic
 pandas 
 openpyxl
 python-dotenv
+bleach
+flask-socketio 
+eventlet
+pillow

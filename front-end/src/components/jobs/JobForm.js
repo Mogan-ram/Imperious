@@ -1,281 +1,451 @@
-// src/components/Jobs/JobForm.js
+// components/jobs/JobForm.js
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Container, Card, Row, Col } from 'react-bootstrap';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Container, Row, Col, Form, Button, Card, Spinner, Alert } from 'react-bootstrap';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { jobService } from '../../services/api/jobs';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'react-toastify';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import './JobForm.css';
 
 const JobForm = () => {
-    const { id } = useParams(); // Get job ID from URL if editing
+    const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [loading, setLoading] = useState(false);
-    const [jobData, setJobData] = useState({
+    const isEditMode = !!id;
+
+    // Initial form state
+    const initialFormState = {
         title: '',
         company: '',
         location: '',
         description: '',
-        salary_min: '', // Use empty string for number inputs
-        salary_max: '',
-        job_type: [], // Use an array for multiple selections
-        requirements: '', // Now a STRING
+        job_type: [],
+        requirements: '',
         how_to_apply: '',
-        deadline: '',
         apply_link: '',
-    });
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        const fetchJob = async () => {
-            if (id) {
-                setLoading(true);
-                try {
-                    const response = await jobService.getJobById(id);
-                    // Ensure job_type is an array, even if stored as a string
-                    const fetchedJobData = {
-                        ...response,
-                        job_type: Array.isArray(response.job_type) ? response.job_type : [response.job_type].filter(Boolean),
-                        // requirements remains a string
-                    };
-                    setJobData(fetchedJobData);
-                } catch (error) {
-                    toast.error("Failed to fetch job details.");
-                    navigate("/jobs"); // Redirect if job not found or error
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-
-        fetchJob();
-    }, [id, navigate]);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-
-        if (name === "job_type") {
-            const options = e.target.options;
-            const selectedValues = [];
-            for (let i = 0; i < options.length; i++) {
-                if (options[i].selected) {
-                    selectedValues.push(options[i].value);
-                }
-            }
-            setJobData(prevData => ({ ...prevData, [name]: selectedValues }));
-        } else {
-            // For all other fields, update directly
-            setJobData(prevData => ({ ...prevData, [name]: value }));
-        }
+        salary_min: '',
+        salary_max: '',
+        deadline: ''
     };
 
+    // Form state
+    const [formData, setFormData] = useState(initialFormState);
+    const [validated, setValidated] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [loadingJob, setLoadingJob] = useState(isEditMode);
 
+    // Available job types
+    const jobTypes = [
+        'Full-time',
+        'Part-time',
+        'Contract',
+        'Freelance',
+        'Internship',
+        'Remote'
+    ];
+
+    // Handle text input changes
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData({
+            ...formData,
+            [name]: value
+        });
+    };
+
+    // Handle number input changes
+    const handleNumberChange = (e) => {
+        const { name, value } = e.target;
+        // Allow empty value or convert to number
+        const numValue = value === '' ? '' : Number(value);
+        setFormData({
+            ...formData,
+            [name]: numValue
+        });
+    };
+
+    // Handle rich text editor changes (description, requirements, how to apply)
+    const handleEditorChange = (value, field) => {
+        setFormData({
+            ...formData,
+            [field]: value
+        });
+    };
+
+    // Handle checkbox changes (job types)
+    const handleCheckboxChange = (e) => {
+        const { value, checked } = e.target;
+        let updatedJobTypes = [...formData.job_type];
+
+        if (checked) {
+            updatedJobTypes.push(value);
+        } else {
+            updatedJobTypes = updatedJobTypes.filter(type => type !== value);
+        }
+
+        setFormData({
+            ...formData,
+            job_type: updatedJobTypes
+        });
+    };
+
+    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError('');
 
-        // Basic validation (add more as needed)
-        if (!jobData.title || !jobData.company || !jobData.location || !jobData.description || jobData.job_type.length === 0 || !jobData.requirements || !jobData.how_to_apply) {
-            setError("Please fill in all required fields.");
-            setLoading(false); // Ensure loading is set to false
+        const form = e.currentTarget;
+
+        // Form validation
+        if (!form.checkValidity()) {
+            e.stopPropagation();
+            setValidated(true);
             return;
         }
 
+        // Additional validation
+        if (formData.salary_min && formData.salary_max &&
+            Number(formData.salary_min) > Number(formData.salary_max)) {
+            setError('Minimum salary cannot be greater than maximum salary');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
 
         try {
-            // Ensure job_type is an array before sending
-            const dataToSend = {
-                ...jobData,
+            // Format data for API
+            const jobData = {
+                ...formData,
+                salary_min: formData.salary_min === '' ? null : Number(formData.salary_min),
+                salary_max: formData.salary_max === '' ? null : Number(formData.salary_max)
             };
 
-            if (id) {
-                await jobService.updateJob(id, dataToSend);
-                toast.success('Job updated successfully!');
+            if (isEditMode) {
+                await jobService.updateJob(id, jobData);
+                setSuccess('Job updated successfully');
             } else {
-                await jobService.createJob(dataToSend);
-                toast.success('Job created successfully!');
-            }
-            navigate('/jobs');
-        } catch (error) {
-            console.error("Error submitting job:", error);
-            setError(error.response?.data?.message || `Failed to ${id ? 'update' : 'create'} job.  Please try again.`);
-            toast.error(error.response?.data?.message || `Failed to ${id ? 'update' : 'create'} job`);
+                const response = await jobService.createJob(jobData);
+                setSuccess('Job created successfully');
 
+                // Reset form after successful creation
+                if (!isEditMode) {
+                    setFormData(initialFormState);
+                }
+            }
+
+            // Navigate back after short delay
+            setTimeout(() => {
+                navigate(isEditMode ? `/jobs/${id}` : '/jobs', {
+                    state: {
+                        message: isEditMode ? 'Job updated successfully' : 'Job created successfully',
+                        variant: 'success'
+                    }
+                });
+            }, 1500);
+        } catch (err) {
+            console.error('Error saving job:', err);
+            setError('Failed to save job. Please try again later.');
         } finally {
             setLoading(false);
         }
     };
 
+    // Fetch job data for editing
+    useEffect(() => {
+        if (isEditMode) {
+            const fetchJobData = async () => {
+                try {
+                    const data = await jobService.getJobById(id);
 
-    if (!user || (user.role.toLowerCase() !== 'alumni' && user.role.toLowerCase() !== 'staff')) {
-        return <Container className="py-4"><p>You do not have permission to access this page.</p></Container>;
-    }
+                    // Format data for form
+                    setFormData({
+                        title: data.title || '',
+                        company: data.company || '',
+                        location: data.location || '',
+                        description: data.description || '',
+                        job_type: data.job_type || [],
+                        requirements: data.requirements || '',
+                        how_to_apply: data.how_to_apply || '',
+                        apply_link: data.apply_link || '',
+                        salary_min: data.salary_min || '',
+                        salary_max: data.salary_max || '',
+                        deadline: data.deadline ? new Date(data.deadline).toISOString().slice(0, 10) : ''
+                    });
 
-    if (loading) {
-        return <Container className="py-4">Loading...</Container>; // Or a loading spinner
-    }
+                    setLoadingJob(false);
+                } catch (err) {
+                    console.error('Error fetching job details:', err);
+                    setError('Failed to load job details. Please try again later.');
+                    setLoadingJob(false);
+                }
+            };
 
+            fetchJobData();
+        }
+    }, [id, isEditMode]);
+
+    // Check if user is authorized (alumni only)
+    useEffect(() => {
+        if (user && user.role !== 'alumni') {
+            navigate('/jobs', {
+                state: {
+                    message: 'Only alumni can post or edit jobs',
+                    variant: 'warning'
+                }
+            });
+        }
+    }, [user, navigate]);
+
+    // Quill editor configuration
+    const editorModules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['link'],
+            ['clean']
+        ],
+    };
 
     return (
-        <Container className="py-4">
-            <Card>
-                <Card.Body>
-                    <Card.Title>{id ? 'Edit Job' : 'Create Job'}</Card.Title>
-                    <Form onSubmit={handleSubmit}>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Job Title</Form.Label>
-                            <Form.Control
-                                type="text"
-                                name="title"
-                                value={jobData.title}
-                                onChange={handleChange}
-                                required
-                                placeholder="Enter job title"
-                            />
-                        </Form.Group>
+        <Container className="job-form-container py-5">
+            <Row className="mb-4">
+                <Col>
+                    <h1 className="form-title">{isEditMode ? 'Edit Job Listing' : 'Post a New Job'}</h1>
+                    <p className="form-subtitle">
+                        {isEditMode
+                            ? 'Update the details of your job listing below.'
+                            : 'Fill out the form below to create a new job listing.'}
+                    </p>
+                </Col>
+            </Row>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Company</Form.Label>
-                            <Form.Control
-                                type="text"
-                                name="company"
-                                value={jobData.company}
-                                onChange={handleChange}
-                                required
-                                placeholder="Enter company name"
-                            />
-                        </Form.Group>
-                        <Row>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Location</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        name="location"
-                                        value={jobData.location}
-                                        onChange={handleChange}
-                                        required
-                                        placeholder="Enter job location"
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Job Type</Form.Label>
-                                    <Form.Control
-                                        as="select"
-                                        multiple
-                                        name="job_type"
-                                        value={jobData.job_type}
-                                        onChange={handleChange}
-                                    >
-                                        <option value="" disabled>Select Job Type</option>
-                                        <option value="Full-time">Full-time</option>
-                                        <option value="Part-time">Part-time</option>
-                                        <option value="Internship">Internship</option>
-                                        <option value="Contract">Contract</option>
-                                        <option value="Freelance">Freelance</option>
-                                        <option value="Temporary">Temporary</option>
-                                    </Form.Control>
-                                    <Form.Text className="text-muted">
-                                        Hold down the Ctrl (or Command on Mac) key to select multiple options.
-                                    </Form.Text>
-                                </Form.Group>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Minimum Salary</Form.Label>
-                                    <Form.Control
-                                        type="number"
-                                        name="salary_min"
-                                        value={jobData.salary_min}
-                                        onChange={handleChange}
-                                        placeholder="e.g., 50000"
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Maximum Salary</Form.Label>
-                                    <Form.Control
-                                        type="number"
-                                        name="salary_max"
-                                        value={jobData.salary_max}
-                                        onChange={handleChange}
-                                        placeholder="e.g., 75000"
-                                    />
-                                </Form.Group>
-                            </Col>
-                        </Row>
+            {loadingJob ? (
+                <div className="text-center py-5">
+                    <Spinner animation="border" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </Spinner>
+                </div>
+            ) : (
+                <Row>
+                    <Col>
+                        <Card className="form-card">
+                            <Card.Body>
+                                {error && <Alert variant="danger">{error}</Alert>}
+                                {success && <Alert variant="success">{success}</Alert>}
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Description</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={3}
-                                name="description"
-                                value={jobData.description}
-                                onChange={handleChange}
-                                required
-                                placeholder="Enter job description"
-                            />
-                        </Form.Group>
+                                <Form noValidate validated={validated} onSubmit={handleSubmit}>
+                                    <Row>
+                                        <Col lg={8}>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label>Job Title *</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="title"
+                                                    value={formData.title}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                    placeholder="e.g., Senior Software Engineer"
+                                                />
+                                                <Form.Control.Feedback type="invalid">
+                                                    Please provide a job title.
+                                                </Form.Control.Feedback>
+                                            </Form.Group>
+                                        </Col>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Requirements</Form.Label>
-                            <Form.Control
-                                as="textarea" // Use textarea
-                                rows={3}
-                                name="requirements"
-                                value={jobData.requirements} // Directly use the string value
-                                onChange={handleChange}
-                                placeholder="Enter job requirements"
-                            />
-                        </Form.Group>
+                                        <Col lg={4}>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label>Company Name *</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="company"
+                                                    value={formData.company}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                    placeholder="e.g., Tech Solutions Inc."
+                                                />
+                                                <Form.Control.Feedback type="invalid">
+                                                    Please provide a company name.
+                                                </Form.Control.Feedback>
+                                            </Form.Group>
+                                        </Col>
+                                    </Row>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>How to Apply</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={3}
-                                name="how_to_apply"
-                                value={jobData.how_to_apply}
-                                onChange={handleChange}
-                                placeholder="Enter application instructions (Email, Link, etc.)"
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Apply Link (optional)</Form.Label>
-                            <Form.Control
-                                type="url"
-                                name="apply_link"
-                                value={jobData.apply_link}
-                                onChange={handleChange}
-                                placeholder="https://example.com/apply"
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Deadline</Form.Label>
-                            <Form.Control
-                                type="date"
-                                name="deadline"
-                                value={jobData.deadline}
-                                onChange={handleChange}
-                            />
-                        </Form.Group>
+                                    <Row>
+                                        <Col lg={6}>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label>Location *</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="location"
+                                                    value={formData.location}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                    placeholder="e.g., New Delhi, India or Remote"
+                                                />
+                                                <Form.Control.Feedback type="invalid">
+                                                    Please provide a location.
+                                                </Form.Control.Feedback>
+                                            </Form.Group>
+                                        </Col>
 
+                                        <Col lg={6}>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label>Application Deadline</Form.Label>
+                                                <Form.Control
+                                                    type="date"
+                                                    name="deadline"
+                                                    value={formData.deadline}
+                                                    onChange={handleInputChange}
+                                                    min={new Date().toISOString().slice(0, 10)}
+                                                    placeholder="Leave blank if no deadline"
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                    </Row>
 
+                                    <Row>
+                                        <Col lg={6}>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label>Minimum Salary (₹)</Form.Label>
+                                                <Form.Control
+                                                    type="number"
+                                                    name="salary_min"
+                                                    value={formData.salary_min}
+                                                    onChange={handleNumberChange}
+                                                    placeholder="e.g., 500000"
+                                                    min="0"
+                                                />
+                                            </Form.Group>
+                                        </Col>
 
-                        <Button variant="primary" type="submit" disabled={loading}>
-                            {loading ? (id ? 'Updating...' : 'Creating...') : (id ? 'Update Job' : 'Create Job')}
-                        </Button>
-                        {error && <p className="text-danger mt-2">{error}</p>}
-                    </Form>
-                </Card.Body>
-            </Card>
+                                        <Col lg={6}>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label>Maximum Salary (₹)</Form.Label>
+                                                <Form.Control
+                                                    type="number"
+                                                    name="salary_max"
+                                                    value={formData.salary_max}
+                                                    onChange={handleNumberChange}
+                                                    placeholder="e.g., 800000"
+                                                    min="0"
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                    </Row>
+
+                                    <Form.Group className="mb-4">
+                                        <Form.Label>Job Type *</Form.Label>
+                                        <div className="job-type-checkboxes">
+                                            {jobTypes.map(type => (
+                                                <Form.Check
+                                                    key={type}
+                                                    type="checkbox"
+                                                    id={`job-type-${type}`}
+                                                    label={type}
+                                                    value={type}
+                                                    checked={formData.job_type.includes(type)}
+                                                    onChange={handleCheckboxChange}
+                                                    className="job-type-checkbox"
+                                                />
+                                            ))}
+                                        </div>
+                                        {validated && formData.job_type.length === 0 && (
+                                            <div className="text-danger small mt-1">
+                                                Please select at least one job type.
+                                            </div>
+                                        )}
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-4">
+                                        <Form.Label>Job Description *</Form.Label>
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={formData.description}
+                                            onChange={(value) => handleEditorChange(value, 'description')}
+                                            modules={editorModules}
+                                            placeholder="Describe the job, responsibilities, and expectations..."
+                                        />
+                                        {validated && !formData.description && (
+                                            <div className="text-danger small mt-1">
+                                                Please provide a job description.
+                                            </div>
+                                        )}
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-4">
+                                        <Form.Label>Requirements</Form.Label>
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={formData.requirements}
+                                            onChange={(value) => handleEditorChange(value, 'requirements')}
+                                            modules={editorModules}
+                                            placeholder="List qualifications, skills, experience required..."
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-4">
+                                        <Form.Label>How to Apply</Form.Label>
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={formData.how_to_apply}
+                                            onChange={(value) => handleEditorChange(value, 'how_to_apply')}
+                                            modules={editorModules}
+                                            placeholder="Provide instructions on how to apply..."
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-4">
+                                        <Form.Label>Application Link</Form.Label>
+                                        <Form.Control
+                                            type="url"
+                                            name="apply_link"
+                                            value={formData.apply_link}
+                                            onChange={handleInputChange}
+                                            placeholder="e.g., https://company.com/apply"
+                                        />
+                                        <Form.Text className="text-muted">
+                                            Direct URL where candidates can apply for this position.
+                                        </Form.Text>
+                                    </Form.Group>
+
+                                    <div className="d-flex gap-2 mt-4">
+                                        <Button
+                                            variant="primary"
+                                            type="submit"
+                                            size="lg"
+                                            disabled={loading}
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <Spinner
+                                                        as="span"
+                                                        animation="border"
+                                                        size="sm"
+                                                        role="status"
+                                                        aria-hidden="true"
+                                                        className="me-2"
+                                                    />
+                                                    {isEditMode ? 'Updating...' : 'Posting...'}
+                                                </>
+                                            ) : (
+                                                isEditMode ? 'Update Job' : 'Post Job'
+                                            )}
+                                        </Button>
+                                        <Link to="/jobs" className="btn btn-outline-secondary btn-lg">
+                                            Cancel
+                                        </Link>
+                                    </div>
+                                </Form>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
+            )}
         </Container>
     );
 };
