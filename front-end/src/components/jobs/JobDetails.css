@@ -1,43 +1,154 @@
-/* src/components/Jobs/JobDetails.css */
+/* components/jobs/JobDetails.css */
 
-.job-details-card {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 0.5rem;
-    border: 1px solid #ddd;
-    /* Add a subtle border */
+.job-details-container {
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-.job-details-card .card-title {
-    font-size: 1.5rem;
-    /* Larger title */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    color: #4a5568;
+    text-decoration: none;
+    font-weight: 500;
+    margin-bottom: 20px;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: #3182ce;
+}
+
+.job-header-card,
+.job-description-card,
+.job-requirements-card,
+.job-apply-card,
+.job-apply-action-card,
+.company-info-card,
+.job-author-card,
+.admin-controls-card {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+}
+
+.job-header-card {
+    background-color: #f8fafc;
+}
+
+.company-logo-placeholder {
+    width: 80px;
+    height: 80px;
+    background-color: #4299e1;
+    color: white;
+    font-size: 32px;
     font-weight: bold;
-    color: #333;
-    /* Darker title color */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
 }
 
-.job-details-card .card-subtitle {
-    font-size: 1.1rem;
-    color: #6c757d;
-    /* Bootstrap muted text color */
-    margin-bottom: 1rem;
-    /* More space below subtitle */
+.job-detail-title {
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: #2d3748;
+    margin-bottom: 4px;
 }
 
-.job-details-card .card-text strong {
-    color: #0d6efd;
-    /* Bootstrap primary color for headings */
-    display: block;
-    /* Make it a block-level element for spacing. */
-    margin-bottom: .5rem;
-    /* Space below strong tags */
+.company-detail-name {
+    font-size: 1.2rem;
+    color: #4a5568;
+    font-weight: 500;
 }
 
-.job-details-card .card-text ul {
+.job-meta-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.job-meta-item {
+    color: #718096;
+    display: inline-flex;
+    align-items: center;
+    background-color: #edf2f7;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.job-detail-salary {
+    color: #48bb78;
+    font-weight: 600;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+}
+
+.salary-period {
+    font-size: 0.9rem;
+    color: #718096;
+    font-weight: normal;
+}
+
+.section-title {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.job-description-content,
+.job-requirements-content,
+.job-apply-content {
+    color: #4a5568;
+    line-height: 1.6;
+}
+
+.job-description-content ul,
+.job-requirements-content ul,
+.job-apply-content ul {
     padding-left: 20px;
 }
 
-.job-details-card .badge {
-    margin-right: 0.5rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.8rem;
+.job-description-content p,
+.job-requirements-content p,
+.job-apply-content p {
+    margin-bottom: 16px;
+}
+
+.company-info-item,
+.author-info-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    color: #4a5568;
+}
+
+.confirm-delete-container {
+    background-color: #fff5f5;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #fed7d7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .job-header-info {
+        margin-top: 10px;
+    }
+
+    .job-meta-details {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .company-logo-placeholder {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+    }
 }

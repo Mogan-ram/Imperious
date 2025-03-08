@@ -1,1 +1,274 @@
- 
+/* Profile.css */
+
+.profile-container {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+/* Profile Card */
+.profile-card {
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Profile Header */
+.profile-header {
+    position: relative;
+    padding-bottom: 30px;
+}
+
+.profile-cover-img {
+    height: 200px;
+    background-image: linear-gradient(to right, #4e73df, #36b9cc);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.profile-user-info {
+    position: relative;
+    margin-top: -80px;
+    padding: 0 20px;
+    display: flex;
+    align-items: flex-end;
+}
+
+.profile-avatar-container {
+    position: relative;
+    margin-right: 20px;
+}
+
+.profile-avatar {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 5px solid white;
+    object-fit: cover;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.photo-edit-button {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.photo-edit-button:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.1);
+}
+
+.profile-user-details {
+    padding-bottom: 10px;
+}
+
+/* Role Badge */
+.role-badge {
+    font-size: 0.9rem;
+    padding: 5px 10px;
+}
+
+.dept-badge {
+    font-size: 0.9rem;
+    padding: 5px 10px;
+    background-color: #6c757d;
+}
+
+/* Profile Tabs */
+.profile-tabs {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.profile-tabs .nav-link {
+    color: #495057;
+    font-weight: 500;
+    padding: 10px 15px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.profile-tabs .nav-link:hover {
+    border-bottom-color: #dee2e6;
+}
+
+.profile-tabs .nav-link.active {
+    color: #4e73df;
+    border-bottom-color: #4e73df;
+}
+
+/* Project Cards */
+.project-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.project-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.text-truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Skills Badges */
+.skills-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.skill-badge {
+    padding: 8px 12px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 20px;
+    font-weight: normal;
+}
+
+/* Connection Cards */
+.connection-card {
+    transition: transform 0.2s;
+    border-radius: 8px;
+}
+
+.connection-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.connection-avatar img {
+    object-fit: cover;
+}
+
+/* Connection Requests Dropdown */
+.connection-stats-card {
+    position: relative;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 0.7rem;
+}
+
+.connection-requests-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    width: 300px;
+    margin-top: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.connection-requests-dropdown .card {
+    border: none;
+}
+
+.connection-requests-dropdown .list-group-item {
+    border-left: none;
+    border-right: none;
+    transition: background-color 0.2s;
+}
+
+.connection-requests-dropdown .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.connection-requests-dropdown .btn-sm {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    padding: 0;
+}
+
+/* Job Profile Styles */
+.date-range {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .profile-user-info {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .profile-avatar-container {
+        margin-right: 0;
+        margin-bottom: 20px;
+    }
+
+    .profile-user-details {
+        text-align: center;
+    }
+
+    .connection-requests-dropdown {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        max-width: 350px;
+    }
+}
+
+/* Mentorship status badges */
+.badge-pending {
+    background-color: #ffc107;
+}
+
+.badge-accepted {
+    background-color: #28a745;
+}
+
+.badge-rejected {
+    background-color: #dc3545;
+}
+
+/* Progress bar styles */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+}
+
+/* Modal customizations */
+.modal-content {
+    border-radius: 10px;
+    border: none;
+}
+
+.modal-header {
+    border-bottom: 1px solid #eee;
+    padding: 15px 20px;
+}
+
+.modal-body {
+    padding: 20px;
+}

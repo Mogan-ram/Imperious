@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Card, Row, Col, Badge, Button, ProgressBar, Breadcrumb, Form, InputGroup, Dropdown, Pagination } from 'react-bootstrap';
-import { useNavigate, Link } from 'react-router-dom';
+import { Container, Card, Row, Col, Badge, Button, ProgressBar, Form, InputGroup, Dropdown, Pagination } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaTrash, FaGithub, FaPlus, FaSearch, FaFilter, FaSort } from 'react-icons/fa';
 import { projectService } from '../../../services/api/projects';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import { toast } from 'react-toastify';
+import { useMemo } from 'react';
 
 const MyProjects = () => {
     const [projects, setProjects] = useState([]);
@@ -65,8 +66,18 @@ const MyProjects = () => {
         return 'secondary';
     };
 
-    const sortProjects = (projects) => {
-        return [...projects].sort((a, b) => {
+
+    const filteredAndSortedProjects = useMemo(() => {
+        // First filter the projects
+        const filtered = (projects || []).filter(project => {
+            const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                project.abstract.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesTech = !filterTech || (project.techStack || []).some(tech =>
+                tech.toLowerCase().includes(filterTech.toLowerCase())
+            );
+            return matchesSearch && matchesTech;
+        });
+        return [...filtered].sort((a, b) => {
             switch (sortBy) {
                 case 'newest':
                     return new Date(b.created_at) - new Date(a.created_at);
@@ -80,18 +91,8 @@ const MyProjects = () => {
                     return 0;
             }
         });
-    };
+    }, [projects, searchTerm, filterTech, sortBy]);
 
-    const filteredAndSortedProjects = sortProjects(
-        (projects || []).filter(project => {
-            const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                project.abstract.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesTech = !filterTech || (project.techStack || []).some(tech =>
-                tech.toLowerCase().includes(filterTech.toLowerCase())
-            );
-            return matchesSearch && matchesTech;
-        })
-    );
 
     // Pagination
     const indexOfLastProject = currentPage * projectsPerPage;

@@ -3,21 +3,29 @@ import { Table, Pagination, Form, Button, Row, Col } from 'react-bootstrap';
 import { FaEnvelope } from 'react-icons/fa';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { Link } from 'react-router-dom';
+import { userService } from '../../services/api/users';
 
-const UserList = ({ users, setUsers, filters, setFilters, userLoading, loadUsers }) => {
+const UserList = ({
+    users,
+    setUsers,
+    filters,
+    setFilters,
+    userLoading = false,
+    loadUsers = null
+}) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [isFiltering, setIsFiltering] = useState(false); // State to manage filter loading.
+    const [isFiltering, setIsFiltering] = useState(false);
+    const [localUsers, setLocalUsers] = useState([]);
 
     // Calculate totalPages whenever the users array or perPage changes.
     useEffect(() => {
-        if (users.length > 0) {
-            // Assuming the users array contains all the data. We will update it later when we add pagination to the backend
+        if (users && users.length > 0) {
+            setLocalUsers(users);
             setTotalPages(Math.ceil(users.length / 10)); // Using 10 as example of perPage
         } else {
             setTotalPages(1);
         }
-
     }, [users]);
 
     const handleFilterChange = (e) => {
@@ -33,29 +41,44 @@ const UserList = ({ users, setUsers, filters, setFilters, userLoading, loadUsers
         setCurrentPage(newPage);
     };
 
-    //Update the loadUsers function to pass the page and perPage.
-    const loadUsersWithPagination = useCallback(async () => {
-        setIsFiltering(true) // Start loading
-        try {
-            await loadUsers(currentPage, 10); // Assuming that 10 is the perPage value
-        } finally {
-            setIsFiltering(false) // stop loading
+    // Custom load users function if not provided
+    const fetchUsers = useCallback(async () => {
+        if (loadUsers && typeof loadUsers === 'function') {
+            return loadUsers(currentPage, 10);
         }
-    }, [loadUsers, currentPage]);
 
+        setIsFiltering(true);
+        try {
+            let queryFilters = { ...filters, page: currentPage, per_page: 10 };
+            const response = await userService.getUsers(queryFilters);
+            if (response && response.users) {
+                if (setUsers && typeof setUsers === 'function') {
+                    setUsers(response.users);
+                } else {
+                    setLocalUsers(response.users);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching users:", error);
+        } finally {
+            setIsFiltering(false);
+        }
+    }, [filters, currentPage, loadUsers, setUsers]);
 
     useEffect(() => {
-        loadUsers();
-        setCurrentPage(1);
-    }, [filters, loadUsers]); // ✅ This now works correctly
-
+        fetchUsers();
+    }, [filters, fetchUsers]);
 
     // Display the spinner either when the data is loading or when the filter is loading
     if (userLoading || isFiltering) {
         return <LoadingSpinner />;
     }
+
+    // Get the proper list of users to display
+    const displayUsers = localUsers.length > 0 ? localUsers : users;
+
     // Return early if users is empty
-    if (users.length === 0) {
+    if (!displayUsers || displayUsers.length === 0) {
         return <div className="text-center">No users found.</div>;
     }
 
@@ -119,7 +142,7 @@ const UserList = ({ users, setUsers, filters, setFilters, userLoading, loadUsers
                     </Form.Group>
                 </Col>
             </Row>
-            <Button variant="primary" onClick={loadUsersWithPagination} className="mb-3">
+            <Button variant="primary" onClick={fetchUsers} className="mb-3">
                 Apply Filters
             </Button>
             <Table striped bordered hover responsive>
@@ -135,7 +158,7 @@ const UserList = ({ users, setUsers, filters, setFilters, userLoading, loadUsers
                     </tr>
                 </thead>
                 <tbody>
-                    {users.map((user) => (
+                    {displayUsers.map((user) => (
                         <tr key={user._id}>
                             <td>{user.name}</td>
                             <td>{user.email}</td>

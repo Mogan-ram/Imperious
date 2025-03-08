@@ -42,6 +42,12 @@ const NewsEventForm = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        // Debug logging
+        console.log("User attempting to create:", {
+            role: user?.role,
+            type: type,
+            hasImage: !!image
+        });
 
         // Validate required fields
         if (!title || !description || !type) {
@@ -64,24 +70,33 @@ const NewsEventForm = () => {
             formData.append("event_date", eventDate);
             formData.append("location", location);
         }
-        // Handle image, checking for size *before* appending
+
+        // Handle image, checking for size before appending
         if (image) {
             if (image.size > MAX_FILE_SIZE_BYTES) {
                 toast.error(`File size exceeds the limit of ${MAX_FILE_SIZE_MB}MB`);
-                return; // Stop the submission
+                return;
             }
             formData.append("image", image);
         }
 
+        // Debug log what's being sent
+        console.log("FormData contents:");
+        for (let pair of formData.entries()) {
+            console.log(pair[0] + ': ' + (pair[0] === 'image' ? 'File data' : pair[1]));
+        }
+
         try {
             const response = await newsEventsService.create(formData);
+            console.log("Success response:", response);
 
             if (response.status === 201) {
                 toast.success("News/Event created successfully!");
-                navigate(`/news-events?type=${type}`);
+                navigate(`/${type === 'news' ? 'news' : 'events'}`);
             }
         } catch (error) {
             console.error("Error creating news/event:", error);
+            console.error("Response data:", error.response?.data);
             toast.error(error.response?.data?.message || "Failed to create news/event");
         }
     };

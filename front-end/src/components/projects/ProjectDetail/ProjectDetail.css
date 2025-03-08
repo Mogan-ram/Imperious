@@ -1,0 +1,47 @@
+.project-detail .progress {
+    height: 25px;
+    border-radius: 5px;
+}
+
+.project-detail .progress-bar {
+    font-size: 14px;
+    line-height: 25px;
+    font-weight: 500;
+}
+
+.project-detail .card {
+    transition: transform 0.2s;
+}
+
+.project-detail .card:hover {
+    transform: translateY(-2px);
+}
+
+.project-detail h5 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.project-detail .badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+.project-detail .list-group-item {
+    transition: background-color 0.2s;
+}
+
+.project-detail .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.project-detail .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.project-detail .shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}

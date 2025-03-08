@@ -1,43 +1,233 @@
 /* src/components/analytics/AnalyticsDashboard.css */
 
-.sidebar {
-    background-color: #f8f9fa;
-    /* Light gray background */
-    padding: 20px;
-    border-right: 1px solid #dee2e6;
-    /* Subtle border */
-    min-height: 100vh;
-    /* Ensure it takes at least the full viewport height */
+/* Main Layout */
+.analytics-dashboard-container {
+    display: flex;
+    min-height: calc(100vh - 60px);
+    /* Adjust based on your header height */
+    background-color: #f5f6f8;
 }
 
-.content {
-    padding: 20px;
+/* Sidebar Styling */
+.analytics-sidebar {
+    width: 250px;
+    background-color: #fff;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    height: calc(100vh - 60px);
+    /* Adjust based on your header height */
 }
 
-.nav-link {
-    color: #007bff;
-    /* Bootstrap primary color for links */
-    padding: 10px 15px;
-    border-radius: 5px;
-    /* Slightly rounded corners */
-    transition: background-color 0.2s ease;
-    /* Smooth transition */
+.sidebar-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
 }
 
-.nav-link:hover {
-    background-color: #e9ecef;
-    /* Light gray on hover */
-    color: #0056b3;
-    /* Darker blue on hover */
+.sidebar-header h4 {
+    margin: 0;
+    color: #3d5170;
+    font-weight: 600;
 }
 
-.nav-link.active {
-    background-color: #007bff;
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav li {
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    color: #6c757d;
+}
+
+.sidebar-nav li:hover {
+    background-color: rgba(17, 141, 255, 0.05);
+    color: #118DFF;
+}
+
+.sidebar-nav li.active {
+    background-color: rgba(17, 141, 255, 0.1);
+    color: #118DFF;
+    border-left: 3px solid #118DFF;
+}
+
+.sidebar-icon {
+    margin-right: 10px;
+    font-size: 1.1rem;
+}
+
+/* Content Area */
+.analytics-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+/* Section Tabs */
+.section-tabs {
+    display: flex;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    padding: 0.5rem;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.25rem;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    color: #6c757d;
+    font-weight: 500;
+    margin-right: 0.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+.tab-btn:hover {
+    background-color: rgba(17, 141, 255, 0.05);
+    color: #118DFF;
+}
+
+.tab-btn.active {
+    background-color: #118DFF;
     color: white;
 }
 
-.nav-link.active:hover {
-    background-color: #0056b3;
+.tab-icon {
+    margin-right: 8px;
 }
 
-/* You can add more styles here for the charts, tables, etc. */
+/* Dashboard Title */
+.dashboard-title {
+    font-weight: 600;
+    color: #3d5170;
+    margin-bottom: 0.25rem;
+    font-size: 1.75rem;
+}
+
+/* Loading State */
+.analytics-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: calc(100vh - 60px);
+    width: 100%;
+}
+
+/* Card Styling */
+.card {
+    border: none;
+    border-radius: 0.625rem;
+    box-shadow: 0 0.125rem 0.625rem rgba(90, 97, 105, 0.12);
+    transition: all 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(90, 97, 105, 0.16);
+}
+
+.card-title {
+    font-weight: 600;
+    color: #3d5170;
+    font-size: 1.125rem;
+}
+
+.card-subtitle {
+    font-size: 0.875rem;
+}
+
+/* Stats Card Styling */
+.stats-card {
+    overflow: hidden;
+}
+
+.stats-card-title {
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stats-card-value {
+    font-weight: 600;
+    margin-bottom: 0;
+    color: #3d5170;
+}
+
+.stats-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.5rem;
+    color: #fff;
+}
+
+.stats-card-icon svg {
+    font-size: 1.25rem;
+}
+
+.stats-card-percentage {
+    font-size: 0.875rem;
+}
+
+.stats-card-footer {
+    font-size: 0.75rem;
+}
+
+/* Background colors for stats card icons */
+.bg-primary {
+    background-color: #118DFF;
+}
+
+.bg-success {
+    background-color: #17C671;
+}
+
+.bg-warning {
+    background-color: #FFB400;
+}
+
+.bg-danger {
+    background-color: #FC5661;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+    .analytics-dashboard-container {
+        flex-direction: column;
+    }
+
+    .analytics-sidebar {
+        width: 100%;
+        height: auto;
+        position: static;
+    }
+
+    .sidebar-nav {
+        display: flex;
+        overflow-x: auto;
+    }
+
+    .sidebar-nav li {
+        padding: 0.75rem 1rem;
+        white-space: nowrap;
+    }
+
+    .analytics-content {
+        padding: 1rem;
+    }
+}

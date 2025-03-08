@@ -1,4 +1,21 @@
+from dataclasses import field
+from tkinter import Image
 from flask import Flask, request, jsonify, send_from_directory, current_app
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from auth import init_auth_routes, SECRET_KEY
+from datetime import datetime, timedelta, timezone
+from flask_cors import CORS
+from cache import get_cached_news_events
+from werkzeug.utils import secure_filename
+from pymongo import MongoClient
+from bson import ObjectId
+from PIL import Image
+import os
+import logging
+import bcrypt
+import atexit
+import signal
+import uuid
 from flask_jwt_extended import (
     JWTManager,
     jwt_required,
@@ -6,7 +23,6 @@ from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
 )
-from auth import init_auth_routes, SECRET_KEY
 from models import (
     Feed,
     User,
@@ -17,20 +33,9 @@ from models import (
     job,
     User,
     Analytics,
+    Conversation,
+    Message,
 )
-from datetime import datetime, timedelta, timezone
-from flask_cors import CORS
-from cache import get_cached_news_events
-from werkzeug.utils import secure_filename
-from pymongo import MongoClient
-from bson import ObjectId
-import os
-import logging
-import bcrypt
-import atexit
-import signal
-import uuid
-from PIL import Image
 
 logging.basicConfig(level=logging.INFO)
 
@@ -85,12 +90,17 @@ ALLOWED_EXTENSIONS = {
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 
+PROFILE_PHOTOS_FOLDER = "uploads/profile_photos"
+app.config["PROFILE_PHOTOS_FOLDER"] = PROFILE_PHOTOS_FOLDER
+os.makedirs(PROFILE_PHOTOS_FOLDER, exist_ok=True)
+
 # Initialize MongoDB client and database
 client = MongoClient("mongodb://localhost:27017/")
 db = client["imperious"]
 projects_collection = db["projects"]
 users_collection = db["users"]
 collaboration_requests = db["collaboration_requests"]
+job_profiles_collection = db["job_profiles"]
 
 # Initialize auth routes
 auth_functions = init_auth_routes(app)
@@ -231,6 +241,359 @@ def handle_profile():
         )
 
 
+@app.route("/profile/photo", methods=["POST"])
+@jwt_required()
+def upload_profile_photo():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        if "photo" not in request.files:
+            return jsonify({"message": "No photo part in the request"}), 400
+
+        file = request.files["photo"]
+
+        if file.filename == "":
+            return jsonify({"message": "No selected file"}), 400
+
+        if file and allowed_file(file.filename):
+            # Create a unique filename
+            filename = secure_filename(file.filename)
+            name, ext = os.path.splitext(filename)
+            unique_filename = f"{str(uuid.uuid4())}{ext}"
+
+            filepath = os.path.join(
+                app.config["PROFILE_PHOTOS_FOLDER"], unique_filename
+            )
+
+            try:
+                # Process the image (resize, optimize)
+                img = Image.open(file)
+
+                # Resize to a standard profile size
+                img.thumbnail((500, 500))
+
+                # Convert to RGB if needed
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+
+                # Save with optimization
+                img.save(filepath, optimize=True, quality=85)
+
+                # Update user profile with photo URL
+                photo_url = f"/uploads/profile_photos/{unique_filename}"
+
+                # Update user document in database
+                users_collection.update_one(
+                    {"_id": user["_id"]}, {"$set": {"photo_url": photo_url}}
+                )
+
+                return (
+                    jsonify(
+                        {
+                            "message": "Profile photo uploaded successfully",
+                            "photo_url": photo_url,
+                        }
+                    ),
+                    200,
+                )
+
+            except Exception as e:
+                print(f"Error processing image: {str(e)}")
+                return jsonify({"message": "Error processing image"}), 500
+
+        else:
+            return jsonify({"message": "File type not allowed"}), 400
+
+    except Exception as e:
+        print(f"Error uploading profile photo: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+@app.route("/uploads/profile_photos/<filename>")
+def serve_profile_photo(filename):
+    return send_from_directory(app.config["PROFILE_PHOTOS_FOLDER"], filename)
+
+
+# Update the Profile endpoint to include photo_url in the response
+@app.route("/profile", methods=["GET"])
+@jwt_required()
+def get_updated_profile():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Add photo_url to user data
+        user_data = {
+            "email": user["email"],
+            "name": user["name"],
+            "role": user.get("role", "user"),
+            "dept": user.get("dept"),
+            "regno": user.get("regno"),
+            "batch": user.get("batch"),
+            "photo_url": user.get("photo_url"),  # Include photo URL
+            "_id": str(user["_id"]),
+        }
+
+        return jsonify(user_data), 200
+
+    except Exception as e:
+        print(f"Error in profile route: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+@app.route("/profile/job", methods=["GET", "POST", "PUT"])
+@jwt_required()
+def handle_job_profile():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Verify user is an alumni
+        if user.get("role", "").lower() != "alumni":
+            return jsonify({"message": "Only alumni can access job profiles"}), 403
+
+        if request.method == "GET":
+            # Fetch user's job profile
+            job_profile = job_profiles_collection.find_one(
+                {"user_id": str(user["_id"])}
+            )
+
+            if not job_profile:
+                return jsonify({"message": "Job profile not found"}), 404
+
+            # Convert ObjectId to string
+            job_profile["_id"] = str(job_profile["_id"])
+
+            return jsonify(job_profile), 200
+
+        elif request.method in ["POST", "PUT"]:
+            data = request.get_json()
+
+            # Validate required fields
+            if not data.get("company"):
+                return jsonify({"message": "Company name is required"}), 400
+
+            if not data.get("job_title"):
+                return jsonify({"message": "Job title is required"}), 400
+
+            # Prepare job profile data
+            job_profile_data = {
+                "user_id": str(user["_id"]),
+                "company": data["company"],
+                "job_title": data["job_title"],
+                "location": data.get("location", ""),
+                "start_date": data.get("start_date"),
+                "end_date": data.get("end_date"),
+                "current": data.get("current", False),
+                "description": data.get("description", ""),
+                "skills": data.get("skills", []),
+                "industry": data.get("industry", ""),
+                "updated_at": datetime.now(timezone.utc),
+            }
+
+            if request.method == "POST":
+                # Check if job profile already exists
+                existing_profile = job_profiles_collection.find_one(
+                    {"user_id": str(user["_id"])}
+                )
+
+                if existing_profile:
+                    return (
+                        jsonify(
+                            {"message": "Job profile already exists, use PUT to update"}
+                        ),
+                        400,
+                    )
+
+                # Add created_at timestamp for new profiles
+                job_profile_data["created_at"] = datetime.now(timezone.utc)
+
+                # Insert new job profile
+                result = job_profiles_collection.insert_one(job_profile_data)
+                return (
+                    jsonify(
+                        {
+                            "message": "Job profile created",
+                            "id": str(result.inserted_id),
+                        }
+                    ),
+                    201,
+                )
+
+            else:  # PUT - Update existing profile
+                # Update existing job profile
+                result = job_profiles_collection.update_one(
+                    {"user_id": str(user["_id"])},
+                    {"$set": job_profile_data},
+                    upsert=True,  # Create if doesn't exist
+                )
+
+                if result.matched_count > 0:
+                    return jsonify({"message": "Job profile updated"}), 200
+                else:
+                    return (
+                        jsonify(
+                            {
+                                "message": "Job profile created",
+                                "id": str(result.upserted_id),
+                            }
+                        ),
+                        201,
+                    )
+
+    except Exception as e:
+        print(f"Error handling job profile: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+@app.route("/profile/job/experience", methods=["POST"])
+@jwt_required()
+def add_job_experience():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Verify user is an alumni
+        if user.get("role", "").lower() != "alumni":
+            return jsonify({"message": "Only alumni can add job experiences"}), 403
+
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ["company", "job_title", "start_date"]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"message": f"{field} is required"}), 400
+
+        # Create experience entry
+        experience = {
+            "_id": str(ObjectId()),  # Generate a unique ID for this experience
+            "company": data["company"],
+            "job_title": data["job_title"],
+            "location": data.get("location", ""),
+            "start_date": data["start_date"],
+            "end_date": data.get("end_date"),
+            "current": data.get("current", False),
+            "description": data.get("description", ""),
+            "skills": data.get("skills", []),
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        # Get user's job profile or create one
+        job_profile = job_profiles_collection.find_one({"user_id": str(user["_id"])})
+
+        if job_profile:
+            # Add to existing experiences array
+            job_profiles_collection.update_one(
+                {"user_id": str(user["_id"])},
+                {
+                    "$push": {"experiences": experience},
+                    "$set": {"updated_at": datetime.now(timezone.utc)},
+                },
+            )
+        else:
+            # Create new job profile with experiences array
+            job_profile_data = {
+                "user_id": str(user["_id"]),
+                "experiences": [experience],
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }
+            job_profiles_collection.insert_one(job_profile_data)
+
+        return (
+            jsonify(
+                {"message": "Job experience added", "experience_id": experience["_id"]}
+            ),
+            201,
+        )
+
+    except Exception as e:
+        print(f"Error adding job experience: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+@app.route("/profile/job/experience/<experience_id>", methods=["PUT", "DELETE"])
+@jwt_required()
+def update_job_experience(experience_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Verify user is an alumni
+        if user.get("role", "").lower() != "alumni":
+            return jsonify({"message": "Only alumni can modify job experiences"}), 403
+
+        # Find job profile with the specified experience
+        job_profile = job_profiles_collection.find_one(
+            {"user_id": str(user["_id"]), "experiences._id": experience_id}
+        )
+
+        if not job_profile:
+            return jsonify({"message": "Experience not found"}), 404
+
+        if request.method == "PUT":
+            data = request.get_json()
+
+            # Validate required fields
+            required_fields = ["company", "job_title", "start_date"]
+            for field in required_fields:
+                if not data.get(field):
+                    return jsonify({"message": f"{field} is required"}), 400
+
+            # Update the experience
+            update_data = {
+                "experiences.$.company": data["company"],
+                "experiences.$.job_title": data["job_title"],
+                "experiences.$.location": data.get("location", ""),
+                "experiences.$.start_date": data["start_date"],
+                "experiences.$.end_date": data.get("end_date"),
+                "experiences.$.current": data.get("current", False),
+                "experiences.$.description": data.get("description", ""),
+                "experiences.$.skills": data.get("skills", []),
+                "updated_at": datetime.now(timezone.utc),
+            }
+
+            job_profiles_collection.update_one(
+                {"user_id": str(user["_id"]), "experiences._id": experience_id},
+                {"$set": update_data},
+            )
+
+            return jsonify({"message": "Job experience updated"}), 200
+
+        elif request.method == "DELETE":
+            # Remove the experience
+            job_profiles_collection.update_one(
+                {"user_id": str(user["_id"])},
+                {
+                    "$pull": {"experiences": {"_id": experience_id}},
+                    "$set": {"updated_at": datetime.now(timezone.utc)},
+                },
+            )
+
+            return jsonify({"message": "Job experience deleted"}), 200
+
+    except Exception as e:
+        print(f"Error updating job experience: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
 # Feed routes
 @app.route("/feeds", methods=["GET", "POST"])
 @jwt_required()
@@ -282,6 +645,10 @@ def handle_news_events():
         return jsonify(get_cached_news_events(page, limit, type)), 200
 
     elif request.method == "POST":
+        print("Form data received:", request.form)
+        print("Form keys:", list(request.form.keys()))
+        print("Files received:", request.files)
+        print("Content-Type:", request.headers.get("Content-Type"))
         try:
             current_user = get_jwt_identity()
             user = User.find_by_email(current_user)
@@ -289,22 +656,37 @@ def handle_news_events():
             if not user or user.get("role", "").lower() not in ["staff", "alumni"]:
                 return jsonify({"message": "Permission denied"}), 403
 
-            # Get form data
-            data = {
-                "title": request.form.get("title"),
-                "description": request.form.get("description"),
-                "type": request.form.get("type"),
-                "created_at": datetime.now(timezone.utc),
-            }
+            if request.is_json:
+                # Handle JSON data
+                json_data = request.get_json()
+                data = {
+                    "title": json_data.get("title"),
+                    "description": json_data.get("description"),
+                    "type": json_data.get("type"),
+                    "created_at": datetime.now(timezone.utc),
+                }
 
-            # Add event-specific fields
-            if data["type"] == "event":
-                data["event_date"] = request.form.get("event_date")
-                data["location"] = request.form.get("location")
+                # Add event-specific fields for JSON
+                if json_data.get("type") == "event":
+                    data["event_date"] = json_data.get("event_date")
+                    data["location"] = json_data.get("location")
+            else:
+                # Handle form data (original code)
+                data = {
+                    "title": request.form.get("title"),
+                    "description": request.form.get("description"),
+                    "type": request.form.get("type"),
+                    "created_at": datetime.now(timezone.utc),
+                }
+
+                # Add event-specific fields
+                if data["type"] == "event":
+                    data["event_date"] = request.form.get("event_date")
+                    data["location"] = request.form.get("location")
 
             # Validate required fields
             required_fields = ["title", "description", "type"]
-            if data["type"] == "event":
+            if data.get("type") == "event":
                 required_fields.extend(["event_date", "location"])
 
             for field in required_fields:
@@ -325,6 +707,9 @@ def handle_news_events():
                     )
                     # Ensure directory exists:
                     os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                    data["image_url"] = f"/uploads/news_events/{unique_filename}"
+                else:
+                    return jsonify({"message": "Invalid file type"}), 400
 
                 try:
                     # --- Image Processing (using Pillow) ---
@@ -354,11 +739,6 @@ def handle_news_events():
                 except Exception as e:
                     app.logger.exception("Error saving image:")
                     return jsonify({"message": "Error saving image"}), 500
-            else:
-                return (
-                    jsonify({"message": "Invalid file type"}),
-                    400,
-                )  # if invalid file type
 
             # Create news/event with author_id
             result = NewsEvent.create(data, author_id=str(user["_id"]))
@@ -1559,5 +1939,760 @@ def get_alumni_posts(alumnus_id):
         return jsonify({"message": "An error occurred while fetching posts."}), 500
 
 
+# Initialize Socket.IO
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Create a dictionary to track online users
+online_users = {}
+
+
+# Socket.IO event handlers
+@socketio.on("connect")
+def handle_connect():
+    print("Client connected")
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    # Remove user from online users and notify others
+    for user_email, sid in list(online_users.items()):
+        if sid == request.sid:
+            del online_users[user_email]
+            emit(
+                "user_status",
+                {"email": user_email, "status": "offline"},
+                broadcast=True,
+            )
+            print(f"User {user_email} disconnected")
+            break
+
+
+@socketio.on("login")
+def handle_login(data):
+    user_email = data.get("email")
+    if user_email:
+        # Store user's socket ID
+        online_users[user_email] = request.sid
+        # Notify others that user is online
+        emit("user_status", {"email": user_email, "status": "online"}, broadcast=True)
+        print(f"User {user_email} logged in")
+
+
+@socketio.on("join_conversation")
+def handle_join_conversation(data):
+    conversation_id = data.get("conversation_id")
+    user_email = data.get("email")
+
+    if not conversation_id or not user_email:
+        print(f"Missing data in join_conversation: {data}")
+        return
+
+    # Create a room name (using conversation ID)
+    room = f"conversation_{conversation_id}"
+
+    # Verify user is part of the conversation
+    user = User.find_by_email(user_email)
+    if not user:
+        print(f"User not found: {user_email}")
+        return
+
+    conversation = Conversation.get_by_id(conversation_id)
+    if not conversation:
+        return
+
+    # Check if user is a participant
+    if str(user["_id"]) not in conversation["participants"]:
+        print(f"Conversation not found: {conversation_id}")
+        return
+
+    if str(user["_id"]) not in conversation["participants"]:
+        print(
+            f"User {user_email} is not a participant in conversation {conversation_id}"
+        )
+        print(f"Participants: {conversation['participants']}")
+        print(f"User ID: {str(user['_id'])}")
+        return
+
+    # Join the room
+    join_room(room)
+    print(f"User {user_email} joined conversation {conversation_id}")
+
+    # Mark conversation as read
+    Conversation.mark_as_read(conversation_id, user_email)
+
+    # Notify others that messages were read
+    emit(
+        "messages_read",
+        {
+            "conversation_id": conversation_id,
+            "user_id": str(user["_id"]),
+            "user_email": user_email,
+        },
+        room=room,
+    )
+
+
+@socketio.on("leave_conversation")
+def handle_leave_conversation(data):
+    conversation_id = data.get("conversation_id")
+
+    if conversation_id:
+        room = f"conversation_{conversation_id}"
+        leave_room(room)
+        print(f"User left conversation {conversation_id}")
+
+
+@socketio.on("send_message")
+def handle_send_message(data):
+    user_email = data.get("email")
+    conversation_id = data.get("conversation_id")
+    text = data.get("text")
+    attachments = data.get("attachments")
+
+    if not user_email or not conversation_id or not text:
+        return
+
+    try:
+        # Create the message
+        message = Message.create(user_email, conversation_id, text, attachments)
+
+        # Send to all clients in the conversation room
+        room = f"conversation_{conversation_id}"
+        emit("new_message", message, room=room)
+
+        print(
+            f"Message from {user_email} in conversation {conversation_id}: {text[:20]}..."
+        )
+    except Exception as e:
+        print(f"Error sending message: {e}")
+
+
+# REST API routes for messaging
+@app.route("/api/conversations", methods=["GET"])
+@jwt_required()
+def get_conversations():
+    current_user = get_jwt_identity()
+
+    try:
+        conversations = Conversation.get_for_user(current_user)
+        return jsonify(conversations), 200
+    except Exception as e:
+        print(f"Error getting conversations: {e}")
+        return jsonify({"error": "Failed to get conversations"}), 500
+
+
+@app.route("/api/conversations", methods=["POST"])
+@jwt_required()
+def create_conversation():
+    current_user = get_jwt_identity()
+    data = request.get_json()
+
+    participants = data.get("participants", [])
+
+    # Add the current user if not already in the list
+    if current_user not in participants:
+        participants.append(current_user)
+
+    try:
+        conversation_id = Conversation.create(participants)
+        conversation = Conversation.get_by_id(conversation_id)
+        return jsonify(conversation), 201
+    except Exception as e:
+        print(f"Error creating conversation: {e}")
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/conversations/<conversation_id>/messages", methods=["GET"])
+@jwt_required()
+def get_messages(conversation_id):
+    current_user = get_jwt_identity()
+
+    # Get pagination parameters
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 20))
+
+    # Verify user is part of the conversation
+    user = User.find_by_email(current_user)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    conversation = Conversation.get_by_id(conversation_id)
+    if not conversation:
+        return jsonify({"error": "Conversation not found"}), 404
+
+    # Check if user is a participant
+    if str(user["_id"]) not in conversation["participants"]:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        messages = Message.get_by_conversation(conversation_id, page, per_page)
+        return jsonify(messages), 200
+    except Exception as e:
+        print(f"Error getting messages: {e}")
+        return jsonify({"error": "Failed to get messages"}), 500
+
+
+@app.route("/api/users/search", methods=["GET"])
+@jwt_required()
+def search_users():
+    current_user = get_jwt_identity()
+
+    # Get search parameters
+    query = request.args.get("q", "")
+    role = request.args.get("role", "")
+    dept = request.args.get("dept", "")
+
+    # Build MongoDB query
+    mongo_query = {}
+
+    # Add search term if provided
+    if query:
+        mongo_query["$or"] = [
+            {"name": {"$regex": query, "$options": "i"}},
+            {"email": {"$regex": query, "$options": "i"}},
+        ]
+
+    # Add role filter if provided
+    if role:
+        mongo_query["role"] = role
+
+    # Add department filter if provided
+    if dept:
+        mongo_query["dept"] = dept
+
+    # Exclude current user
+    mongo_query["email"] = {"$ne": current_user}
+
+    try:
+        # Find users
+        users = list(users_collection.find(mongo_query).limit(10))
+
+        # Format results
+        result = []
+        for user in users:
+            user["_id"] = str(user["_id"])
+            user.pop("password", None)  # Remove password
+            result.append(user)
+
+        return jsonify(result), 200
+    except Exception as e:
+        print(f"Error searching users: {e}")
+        return jsonify({"error": "Failed to search users"}), 500
+
+
+# Create a new collection for connection requests
+connection_requests = db["connection_requests"]
+
+
+@app.route("/connections/request", methods=["POST"])
+@jwt_required()
+def create_connection_request():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get("to_user_id"):
+            return jsonify({"message": "Recipient user ID is required"}), 400
+
+        # Check if users exist
+        to_user = users_collection.find_one({"_id": ObjectId(data["to_user_id"])})
+        if not to_user:
+            return jsonify({"message": "Recipient user not found"}), 404
+
+        # Ensure users aren't the same
+        if str(user["_id"]) == data["to_user_id"]:
+            return (
+                jsonify({"message": "Cannot send connection request to yourself"}),
+                400,
+            )
+
+        # Check if a connection request already exists
+        existing_request = connection_requests.find_one(
+            {
+                "$or": [
+                    {
+                        "from_user_id": str(user["_id"]),
+                        "to_user_id": data["to_user_id"],
+                        "status": {"$in": ["pending", "accepted"]},
+                    },
+                    {
+                        "from_user_id": data["to_user_id"],
+                        "to_user_id": str(user["_id"]),
+                        "status": {"$in": ["pending", "accepted"]},
+                    },
+                ]
+            }
+        )
+
+        if existing_request:
+            if existing_request["status"] == "accepted":
+                return jsonify({"message": "Users are already connected"}), 400
+            else:
+                return jsonify({"message": "Connection request already exists"}), 400
+
+        # Create connection request
+        connection_request = {
+            "from_user_id": str(user["_id"]),
+            "to_user_id": data["to_user_id"],
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        result = connection_requests.insert_one(connection_request)
+        return (
+            jsonify(
+                {"message": "Connection request sent", "id": str(result.inserted_id)}
+            ),
+            201,
+        )
+
+    except Exception as e:
+        print(f"Error creating connection request: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+@app.route("/connections/requests", methods=["GET"])
+@jwt_required()
+def get_connection_requests():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        user_id = str(user["_id"])
+
+        # Get requests sent to the current user
+        received_requests = list(
+            connection_requests.find({"to_user_id": user_id, "status": "pending"})
+        )
+
+        # Format the response
+        formatted_requests = []
+        for req in received_requests:
+            # Get sender details
+            sender = users_collection.find_one({"_id": ObjectId(req["from_user_id"])})
+            if sender:
+                formatted_request = {
+                    "_id": str(req["_id"]),
+                    "from_user": {
+                        "_id": str(sender["_id"]),
+                        "name": sender.get("name", "Unknown"),
+                        "email": sender.get("email", ""),
+                        "role": sender.get("role", ""),
+                        "dept": sender.get("dept", ""),
+                        "batch": sender.get("batch", ""),
+                    },
+                    "status": req["status"],
+                    "created_at": req["created_at"].isoformat(),
+                }
+                formatted_requests.append(formatted_request)
+
+        return jsonify(formatted_requests), 200
+
+    except Exception as e:
+        print(f"Error getting connection requests: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+@app.route("/connections/request/<request_id>", methods=["PUT"])
+@jwt_required()
+def update_connection_request(request_id):
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        data = request.get_json()
+
+        # Validate input
+        if not data.get("status") or data["status"] not in ["accepted", "rejected"]:
+            return (
+                jsonify({"message": "Valid status (accepted/rejected) is required"}),
+                400,
+            )
+
+        # Verify the request exists and is directed to the current user
+        connection_request = connection_requests.find_one(
+            {
+                "_id": ObjectId(request_id),
+                "to_user_id": str(user["_id"]),
+                "status": "pending",
+            }
+        )
+
+        if not connection_request:
+            return (
+                jsonify(
+                    {"message": "Connection request not found or already processed"}
+                ),
+                404,
+            )
+
+        # Update the request status
+        connection_requests.update_one(
+            {"_id": ObjectId(request_id)},
+            {
+                "$set": {
+                    "status": data["status"],
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
+        )
+
+        return jsonify({"message": f"Connection request {data['status']}"}), 200
+
+    except Exception as e:
+        print(f"Error updating connection request: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+@app.route("/connections", methods=["GET"])
+@jwt_required()
+def get_connections():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        user_id = str(user["_id"])
+
+        # Get accepted connection requests where the current user is involved
+        connections = list(
+            connection_requests.find(
+                {
+                    "$or": [
+                        {"from_user_id": user_id, "status": "accepted"},
+                        {"to_user_id": user_id, "status": "accepted"},
+                    ]
+                }
+            )
+        )
+
+        # Format the response
+        formatted_connections = []
+        for conn in connections:
+            # Determine the other user in the connection
+            other_user_id = (
+                conn["to_user_id"]
+                if conn["from_user_id"] == user_id
+                else conn["from_user_id"]
+            )
+            other_user = users_collection.find_one({"_id": ObjectId(other_user_id)})
+
+            if other_user:
+                formatted_connection = {
+                    "_id": str(conn["_id"]),
+                    "user": {
+                        "_id": str(other_user["_id"]),
+                        "name": other_user.get("name", "Unknown"),
+                        "email": other_user.get("email", ""),
+                        "role": other_user.get("role", ""),
+                        "dept": other_user.get("dept", ""),
+                        "batch": other_user.get("batch", ""),
+                    },
+                    "connected_at": conn.get(
+                        "updated_at", conn["created_at"]
+                    ).isoformat(),
+                }
+                formatted_connections.append(formatted_connection)
+
+        return jsonify(formatted_connections), 200
+
+    except Exception as e:
+        print(f"Error getting connections: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+@app.route("/connections/stats", methods=["GET"])
+@jwt_required()
+def get_connection_stats():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+        user_id = str(user["_id"])
+        user_role = user.get("role", "").lower()
+        user_dept = user.get("dept", "")
+
+        # Get count of pending requests
+        pending_requests = connection_requests.count_documents(
+            {"to_user_id": user_id, "status": "pending"}
+        )
+
+        # Get count of accepted connections
+        all_connections = connection_requests.count_documents(
+            {
+                "$or": [
+                    {"from_user_id": user_id, "status": "accepted"},
+                    {"to_user_id": user_id, "status": "accepted"},
+                ]
+            }
+        )
+
+        stats = {
+            "pending_requests": pending_requests,
+            "total_connections": all_connections,
+        }
+
+        # Add role-specific statistics
+        if user_role == "student":
+            # Count alumni connections
+            alumni_connections = connection_requests.count_documents(
+                {
+                    "$or": [
+                        {"from_user_id": user_id, "status": "accepted"},
+                        {"to_user_id": user_id, "status": "accepted"},
+                    ],
+                    "$expr": {
+                        "$or": [
+                            {
+                                "$eq": [
+                                    {"$literal": "alumni"},
+                                    {
+                                        "$getField": {
+                                            "field": "role",
+                                            "input": {
+                                                "$ifNull": [
+                                                    {
+                                                        "$getField": {
+                                                            "field": "from_user",
+                                                            "input": "$$ROOT",
+                                                        }
+                                                    },
+                                                    {"$literal": {}},
+                                                ]
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                            {
+                                "$eq": [
+                                    {"$literal": "alumni"},
+                                    {
+                                        "$getField": {
+                                            "field": "role",
+                                            "input": {
+                                                "$ifNull": [
+                                                    {
+                                                        "$getField": {
+                                                            "field": "to_user",
+                                                            "input": "$$ROOT",
+                                                        }
+                                                    },
+                                                    {"$literal": {}},
+                                                ]
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                        ]
+                    },
+                }
+            )
+
+            # Count student connections
+            student_connections = connection_requests.count_documents(
+                {
+                    "$or": [
+                        {"from_user_id": user_id, "status": "accepted"},
+                        {"to_user_id": user_id, "status": "accepted"},
+                    ],
+                    "$expr": {
+                        "$or": [
+                            {
+                                "$eq": [
+                                    {"$literal": "student"},
+                                    {
+                                        "$getField": {
+                                            "field": "role",
+                                            "input": {
+                                                "$ifNull": [
+                                                    {
+                                                        "$getField": {
+                                                            "field": "from_user",
+                                                            "input": "$$ROOT",
+                                                        }
+                                                    },
+                                                    {"$literal": {}},
+                                                ]
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                            {
+                                "$eq": [
+                                    {"$literal": "student"},
+                                    {
+                                        "$getField": {
+                                            "field": "role",
+                                            "input": {
+                                                "$ifNull": [
+                                                    {
+                                                        "$getField": {
+                                                            "field": "to_user",
+                                                            "input": "$$ROOT",
+                                                        }
+                                                    },
+                                                    {"$literal": {}},
+                                                ]
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                        ]
+                    },
+                }
+            )
+
+            stats["student_connections"] = student_connections
+            stats["alumni_connections"] = alumni_connections
+
+        elif user_role == "alumni":
+            # Count student connections
+            student_connections = connection_requests.count_documents(
+                {
+                    "$or": [
+                        {"from_user_id": user_id, "status": "accepted"},
+                        {"to_user_id": user_id, "status": "accepted"},
+                    ],
+                    "$expr": {
+                        "$or": [
+                            {
+                                "$eq": [
+                                    {"$literal": "student"},
+                                    {
+                                        "$getField": {
+                                            "field": "role",
+                                            "input": {
+                                                "$ifNull": [
+                                                    {
+                                                        "$getField": {
+                                                            "field": "from_user",
+                                                            "input": "$$ROOT",
+                                                        }
+                                                    },
+                                                    {"$literal": {}},
+                                                ]
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                            {
+                                "$eq": [
+                                    {"$literal": "student"},
+                                    {
+                                        "$getField": {
+                                            "field": "role",
+                                            "input": {
+                                                "$ifNull": [
+                                                    {
+                                                        "$getField": {
+                                                            "field": "to_user",
+                                                            "input": "$$ROOT",
+                                                        }
+                                                    },
+                                                    {"$literal": {}},
+                                                ]
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                        ]
+                    },
+                }
+            )
+
+            stats["student_connections"] = student_connections
+
+        elif user_role == "staff":
+            # Count department students
+            dept_students = users_collection.count_documents(
+                {"role": "student", "dept": user_dept}
+            )
+            # Count department alumni
+            dept_alumni = users_collection.count_documents(
+                {"role": "alumni", "dept": user_dept}
+            )
+
+            stats["department_students"] = dept_students
+            stats["department_alumni"] = dept_alumni
+
+        return jsonify(stats), 200
+
+    except Exception as e:
+        print(f"Error getting connection stats: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
+# Add this route for a simplified version of the connection stats
+@app.route("/profile/connections/<user_id>", methods=["GET"])
+@jwt_required()
+def get_profile_connections(user_id):
+    try:
+        current_user = get_jwt_identity()
+        requesting_user = User.find_by_email(current_user)
+
+        # Get user whose connections we're checking
+        target_user = users_collection.find_one({"_id": ObjectId(user_id)})
+        if not target_user:
+            return jsonify({"message": "User not found"}), 404
+
+        user_role = target_user.get("role", "").lower()
+        user_dept = target_user.get("dept", "")
+
+        # Build response based on role
+        response = {}
+
+        if user_role == "student":
+            # Student connections
+            student_connections = users_collection.count_documents(
+                {
+                    "role": "student",
+                    "dept": user_dept,
+                    "_id": {"$ne": ObjectId(user_id)},
+                }
+            )
+            # Alumni connections
+            alumni_connections = users_collection.count_documents(
+                {"role": "alumni", "dept": user_dept}
+            )
+
+            response = {"students": student_connections, "alumni": alumni_connections}
+
+        elif user_role == "alumni":
+            # Total connections (all users in their department)
+            total_connections = users_collection.count_documents(
+                {"dept": user_dept, "_id": {"$ne": ObjectId(user_id)}}
+            )
+            # Student connections
+            student_connections = users_collection.count_documents(
+                {"role": "student", "dept": user_dept}
+            )
+
+            response = {"total": total_connections, "students": student_connections}
+
+        elif user_role == "staff":
+            # Department students
+            dept_students = users_collection.count_documents(
+                {"role": "student", "dept": user_dept}
+            )
+            # Department alumni
+            dept_alumni = users_collection.count_documents(
+                {"role": "alumni", "dept": user_dept}
+            )
+
+            response = {
+                "departmentStudents": dept_students,
+                "departmentAlumni": dept_alumni,
+            }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        print(f"Error getting profile connections: {str(e)}")
+        return jsonify({"message": "An error occurred"}), 500
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)

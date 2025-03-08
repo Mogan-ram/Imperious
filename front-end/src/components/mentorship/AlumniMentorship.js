@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Tabs, Tab, Card, Button, Badge, Row, Col } from 'react-bootstrap';
+import { Container, Tabs, Tab, Card, Button, Badge, Row, Col, Alert } from 'react-bootstrap';
 import { mentorshipService } from '../../services/api/mentorship';
-import { projectService } from '../../services/api/projects';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,7 +9,6 @@ const AlumniMentorship = () => {
     const [activeTab, setActiveTab] = useState('requests');
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState([]);
-    const [exploreProjects, setExploreProjects] = useState([]);
     const { user } = useAuth();
 
     const loadRequests = useCallback(async () => {
@@ -31,38 +29,14 @@ const AlumniMentorship = () => {
         }
     }, []);
 
-    const loadExploreProjects = useCallback(async () => {
-        try {
-            const response = await projectService.getProjects();
-            if (Array.isArray(response.data)) {
-                setExploreProjects(response.data);
-            } else {
-                console.error("Invalid data format for projects:", response.data);
-                toast.error("Received invalid data format for projects.");
-                setExploreProjects([]);
-            }
-        } catch (error) {
-            console.error("Error loading projects for exploration:", error);
-            toast.error("Failed to load projects for exploration.");
-            setExploreProjects([]);
-        }
-    }, []);
-
-
     useEffect(() => {
         setLoading(true);
         const fetchData = async () => {
-            if (activeTab === 'requests' || activeTab === 'accepted' || activeTab === 'ignored') {
-                await loadRequests();  // Always load requests for these tabs
-            } else if (activeTab === 'explore') {
-                await loadExploreProjects();
-            }
+            await loadRequests();
             setLoading(false);
-        }
+        };
         fetchData();
-
-    }, [activeTab, loadRequests, loadExploreProjects]); // Correct dependencies
-
+    }, [loadRequests]);
 
     const handleStatusUpdate = async (requestId, status) => {
         try {
@@ -99,101 +73,159 @@ const AlumniMentorship = () => {
         return <LoadingSpinner />;
     }
 
+    // Filter for pending requests not ignored by current user
+    const pendingRequests = requests.filter(request =>
+        request.status === 'pending' &&
+        (!request.ignored_by || !request.ignored_by.includes(user.email))
+    );
+
+    // Filter for accepted requests where user is the mentor
+    const acceptedRequests = requests.filter(request =>
+        request.status === 'accepted' &&
+        (request.mentor_id === user.email || request.mentor_id === user._id)
+    );
+
+    // Filter for ignored requests
+    const ignoredRequests = requests.filter(request =>
+        request.ignored_by && request.ignored_by.includes(user.email)
+    );
+
     return (
         <Container className="py-4">
             <h2 className="mb-4">Alumni Mentorship</h2>
             <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-3">
 
-                {/* Incoming Requests (Pending and NOT ignored) */}
-                <Tab eventKey="requests" title="Incoming Requests">
-                    {requests.filter(request => request.status === 'pending' && (!request.ignored_by || !request.ignored_by.includes(user.email))).length > 0 ? (
-                        requests.filter(request => request.status === 'pending' && (!request.ignored_by || !request.ignored_by.includes(user.email)))
-                            .map((request) => (
-                                <Card key={request._id} className="mb-3">
-                                    {/* ... (rest of the card content for pending requests - as you had it before, but with correct filtering) */}
-                                    <Card.Body>
-                                        <Card.Title>{request.project?.title || 'Project Not Found'}</Card.Title>
-                                        <Card.Subtitle className="mb-2 text-muted">
-                                            From: {request.student ? `${request.student.name} (${request.student.dept})` : 'Unknown Student'}
-                                        </Card.Subtitle>
-                                        <Card.Text>
-                                            Message: {request.message}
-                                        </Card.Text>
-                                        <Badge bg={getStatusBadgeClass(request.status)}>  {/* Corrected Badge */}
-                                            {request.status}
-                                        </Badge>
-                                        {request.status === 'pending' && (
-                                            <div className="mt-2">
+                {/* Incoming Requests Tab */}
+                <Tab eventKey="requests" title={`Incoming Requests (${pendingRequests.length})`}>
+                    {pendingRequests.length > 0 ? (
+                        <Row xs={1} md={2} className="g-4">
+                            {pendingRequests.map((request) => (
+                                <Col key={request._id}>
+                                    <Card className="h-100 shadow-sm">
+                                        <Card.Header className="d-flex justify-content-between align-items-center">
+                                            <Badge bg={getStatusBadgeClass(request.status)}>
+                                                {request.status}
+                                            </Badge>
+                                            <small className="text-muted">
+                                                {new Date(request.created_at).toLocaleDateString()}
+                                            </small>
+                                        </Card.Header>
+                                        <Card.Body>
+                                            <Card.Title>{request.project?.title || 'Project Not Found'}</Card.Title>
+                                            <Card.Subtitle className="mb-3 text-muted">
+                                                From: {request.student ? `${request.student.name} (${request.student.dept})` : 'Unknown Student'}
+                                            </Card.Subtitle>
+                                            <Card.Text>
+                                                <strong>Message:</strong> {request.message}
+                                            </Card.Text>
+                                            <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                                                 <Button
                                                     variant="success"
                                                     onClick={() => handleStatusUpdate(request._id, 'accepted')}
-                                                    className="me-2"
                                                 >
                                                     Accept
                                                 </Button>
-                                                <Button variant="secondary" onClick={() => handleIgnore(request._id)}>
+                                                <Button
+                                                    variant="outline-secondary"
+                                                    onClick={() => handleIgnore(request._id)}
+                                                >
                                                     Ignore
                                                 </Button>
                                             </div>
-                                        )}
-                                    </Card.Body>
-                                </Card>
-                            ))
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+                            ))}
+                        </Row>
                     ) : (
-                        <p>No incoming mentorship requests found.</p>
+                        <Alert variant="info">
+                            No incoming mentorship requests found. When students request your mentorship, they'll appear here.
+                        </Alert>
                     )}
                 </Tab>
 
-                {/* Accepted Requests */}
-                <Tab eventKey="accepted" title="Accepted Requests">
-                    {requests.filter(request => request.status === 'accepted' && request.mentor_id === user.email).length > 0 ? (
-                        requests.filter(request => request.status === 'accepted' && request.mentor_id === user.email)
-                            .map((request) => (
-                                <Card key={request._id} className="mb-3">
-                                    <Card.Body>
-                                        <Card.Title>{request.project?.title || 'Project Not Found'}</Card.Title>
-                                        <Card.Subtitle className="mb-2 text-muted">
-                                            From: {request.student ? `${request.student.name} (${request.student.dept})` : 'Unknown Student'}
-                                        </Card.Subtitle>
-                                        <Card.Text>
-                                            Message: {request.message}
-                                        </Card.Text>
-                                        <Badge bg={getStatusBadgeClass(request.status)}>
-                                            {request.status}
-                                        </Badge>
-                                    </Card.Body>
-                                </Card>
-                            ))
+                {/* Accepted Requests Tab */}
+                <Tab eventKey="accepted" title={`Accepted Requests (${acceptedRequests.length})`}>
+                    {acceptedRequests.length > 0 ? (
+                        <Row xs={1} md={2} className="g-4">
+                            {acceptedRequests.map((request) => (
+                                <Col key={request._id}>
+                                    <Card className="h-100 shadow-sm">
+                                        <Card.Header className="d-flex justify-content-between align-items-center">
+                                            <Badge bg={getStatusBadgeClass(request.status)}>
+                                                {request.status}
+                                            </Badge>
+                                            <small className="text-muted">
+                                                Accepted on: {new Date(request.updated_at || request.created_at).toLocaleDateString()}
+                                            </small>
+                                        </Card.Header>
+                                        <Card.Body>
+                                            <Card.Title>{request.project?.title || 'Project Not Found'}</Card.Title>
+                                            <Card.Subtitle className="mb-3 text-muted">
+                                                Student: {request.student ? `${request.student.name} (${request.student.dept})` : 'Unknown Student'}
+                                            </Card.Subtitle>
+                                            <Card.Text>
+                                                <strong>Message:</strong> {request.message}
+                                            </Card.Text>
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+                            ))}
+                        </Row>
                     ) : (
-                        <p>No accepted mentorship requests found.</p>
+                        <Alert variant="info">
+                            You haven't accepted any mentorship requests yet. Accepted requests will be shown here.
+                        </Alert>
                     )}
                 </Tab>
 
-                {/* Ignored Requests */}
-                <Tab eventKey="ignored" title="Ignored Requests">
-                    {requests.filter(request => request.ignored_by && request.ignored_by.includes(user.email)).length > 0 ? (
-                        requests.filter(request => request.ignored_by && request.ignored_by.includes(user.email))
-                            .map((request) => (
-                                <Card key={request._id} className="mb-3">
-                                    <Card.Body>
-                                        <Card.Title>{request.project?.title || 'Project Not Found'}</Card.Title>
-                                        <Card.Subtitle className="mb-2 text-muted">
-                                            From: {request.student ? `${request.student.name} (${request.student.dept})` : 'Unknown Student'}
-                                        </Card.Subtitle>
-                                        <Card.Text>
-                                            Message: {request.message}
-                                        </Card.Text>
-                                        <Badge bg={getStatusBadgeClass(request.status)}>
-                                            {request.status}
-                                        </Badge>
-                                    </Card.Body>
-                                </Card>
-                            ))
+                {/* Ignored Requests Tab */}
+                <Tab eventKey="ignored" title={`Ignored Requests (${ignoredRequests.length})`}>
+                    {ignoredRequests.length > 0 ? (
+                        <Row xs={1} md={2} className="g-4">
+                            {ignoredRequests.map((request) => (
+                                <Col key={request._id}>
+                                    <Card className="h-100 shadow-sm border-light">
+                                        <Card.Header className="d-flex justify-content-between align-items-center bg-light">
+                                            <Badge bg={getStatusBadgeClass(request.status)}>
+                                                {request.status}
+                                            </Badge>
+                                            <small className="text-muted">
+                                                {new Date(request.created_at).toLocaleDateString()}
+                                            </small>
+                                        </Card.Header>
+                                        <Card.Body className="text-muted">
+                                            <Card.Title>{request.project?.title || 'Project Not Found'}</Card.Title>
+                                            <Card.Subtitle className="mb-3">
+                                                From: {request.student ? `${request.student.name} (${request.student.dept})` : 'Unknown Student'}
+                                            </Card.Subtitle>
+                                            <Card.Text>
+                                                <strong>Message:</strong> {request.message}
+                                            </Card.Text>
+                                            {request.status === 'pending' && (
+                                                <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                                                    <Button
+                                                        variant="outline-success"
+                                                        size="sm"
+                                                        onClick={() => handleStatusUpdate(request._id, 'accepted')}
+                                                    >
+                                                        Reconsider & Accept
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+                            ))}
+                        </Row>
                     ) : (
-                        <p>No ignored mentorship requests found.</p>
+                        <Alert variant="info">
+                            No ignored requests found. Requests you ignore will appear here.
+                        </Alert>
                     )}
                 </Tab>
 
+                {/* Explore Projects Tab - COMMENTED OUT 
                 <Tab eventKey="explore" title="Explore Projects">
                     {exploreProjects.length > 0 ? (
                         <Row xs={1} md={2} lg={3} className="g-4">
@@ -217,9 +249,6 @@ const AlumniMentorship = () => {
                                                     GitHub Repository
                                                 </Card.Link>
                                             )}
-
-
-                                            {/* Add more project details as needed */}
                                         </Card.Body>
                                     </Card>
                                 </Col>
@@ -229,6 +258,7 @@ const AlumniMentorship = () => {
                         <p>No projects available for mentorship.</p>
                     )}
                 </Tab>
+                */}
             </Tabs>
         </Container>
     );
