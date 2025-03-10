@@ -1,0 +1,43 @@
+.user-list-container {
+    padding: 1rem 0;
+}
+
+.user-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.user-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.user-avatar img {
+    object-fit: cover;
+    border: 2px solid #f8f9fa;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.user-card .badge {
+    font-weight: normal;
+    padding: 0.35em 0.65em;
+}
+
+.text-truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.skills-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.skill-badge {
+    font-size: 0.75rem;
+    border-radius: 12px;
+}

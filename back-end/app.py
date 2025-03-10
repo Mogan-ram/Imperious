@@ -101,6 +101,8 @@ projects_collection = db["projects"]
 users_collection = db["users"]
 collaboration_requests = db["collaboration_requests"]
 job_profiles_collection = db["job_profiles"]
+connections_collection = db["connections"]
+connection_requests_collection = db["connection_requests"]
 
 # Initialize auth routes
 auth_functions = init_auth_routes(app)
@@ -592,6 +594,540 @@ def update_job_experience(experience_id):
     except Exception as e:
         print(f"Error updating job experience: {str(e)}")
         return jsonify({"message": "An error occurred"}), 500
+
+
+# Add these routes to app.py
+
+
+# Profile routes - Get user profile by ID
+@app.route("/profile/<user_id>", methods=["GET"])
+@jwt_required()
+def get_user_profile(user_id):
+    try:
+        current_user = get_jwt_identity()
+        # Find the target user
+        if user_id == "me" or not user_id:
+            # Get current user's profile
+            user = User.find_by_email(current_user)
+        else:
+            # Find user by ID
+            user = users_collection.find_one({"_id": ObjectId(user_id)})
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Prepare user data - remove sensitive information
+        user_data = {
+            "email": user["email"],
+            "name": user["name"],
+            "role": user.get("role", "user"),
+            "dept": user.get("dept"),
+            "regno": user.get("regno"),
+            "batch": user.get("batch"),
+            "photo_url": user.get("photo_url"),
+            "bio": user.get("bio", ""),
+            "linkedin": user.get("linkedin", ""),
+            "github": user.get("github", ""),
+            "skills": user.get("skills", []),
+            "willingness": user.get("willingness", []),
+            "staff_id": user.get("staff_id"),
+            "_id": str(user["_id"]),
+        }
+
+        return jsonify(user_data), 200
+
+    except Exception as e:
+        print(f"Error in get user profile route: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Connections routes
+@app.route("/connections", methods=["GET"])
+@jwt_required()
+def get_user_connections():
+    try:
+        current_user = get_jwt_identity()
+        user = User.find_by_email(current_user)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        user_id = str(user["_id"])
+
+        # Get all accepted connections for this user
+        connections = list(
+            connections_collection.find(
+                {
+                    "$and": [
+                        {"status": "accepted"},
+                        {"$or": [{"user1_id": user_id}, {"user2_id": user_id}]},
+                    ]
+                }
+            )
+        )
+
+        result = []
+        for connection in connections:
+            # Determine which user ID is the other user
+            other_user_id = (
+                connection["user2_id"]
+                if connection["user1_id"] == user_id
+                else connection["user1_id"]
+            )
+
+            # Get user details
+            other_user = users_collection.find_one({"_id": ObjectId(other_user_id)})
+
+            if other_user:
+                result.append(
+                    {
+                        "connection_id": str(connection["_id"]),
+                        "connected_at": connection["updated_at"].isoformat(),
+                        "user": {
+                            "_id": str(other_user["_id"]),
+                            "name": other_user["name"],
+                            "email": other_user["email"],
+                            "role": other_user["role"],
+                            "dept": other_user.get("dept", ""),
+                            "batch": other_user.get("batch", ""),
+                            "photo_url": other_user.get("photo_url", ""),
+                        },
+                    }
+                )
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(f"Error getting connections: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Get connections for a specific user (used for viewing other profiles)
+@app.route("/connections/user/<user_id>", methods=["GET"])
+@jwt_required()
+def get_specific_user_connections(user_id):
+    try:
+        current_user = get_jwt_identity()
+        # Verify user exists
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Get connections for the specified user (only return limited info for privacy)
+        connections = list(
+            connections_collection.find(
+                {
+                    "$and": [
+                        {"status": "accepted"},
+                        {"$or": [{"user1_id": user_id}, {"user2_id": user_id}]},
+                    ]
+                }
+            )
+        )
+
+        # If not the current user or an admin, limit the number of connections shown
+        limit_connections = user_id != str(
+            users_collection.find_one({"email": current_user})["_id"]
+        ) and not is_admin(current_user)
+
+        result = []
+        connection_count = 0
+        connection_limit = 10  # Show max 10 connections for other users
+
+        for connection in connections:
+            if limit_connections and connection_count >= connection_limit:
+                break
+
+            # Determine which user ID is the other user
+            other_user_id = (
+                connection["user2_id"]
+                if connection["user1_id"] == user_id
+                else connection["user1_id"]
+            )
+
+            # Get user details
+            other_user = users_collection.find_one({"_id": ObjectId(other_user_id)})
+
+            if other_user:
+                result.append(
+                    {
+                        "connection_id": str(connection["_id"]),
+                        "connected_at": connection["updated_at"].isoformat(),
+                        "user": {
+                            "_id": str(other_user["_id"]),
+                            "name": other_user["name"],
+                            "email": other_user["email"],
+                            "role": other_user["role"],
+                            "dept": other_user.get("dept", ""),
+                            "photo_url": other_user.get("photo_url", ""),
+                        },
+                    }
+                )
+                connection_count += 1
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(f"Error getting specific user connections: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Check connection status between current user and another user
+@app.route("/connections/status/<user_id>", methods=["GET"])
+@jwt_required()
+def check_connection_status(user_id):
+    try:
+        current_user = get_jwt_identity()
+        current_user_obj = User.find_by_email(current_user)
+
+        if not current_user_obj:
+            return jsonify({"message": "Current user not found"}), 404
+
+        current_user_id = str(current_user_obj["_id"])
+
+        # Check if already connected
+        connection = connections_collection.find_one(
+            {
+                "$and": [
+                    {
+                        "$or": [
+                            {
+                                "$and": [
+                                    {"user1_id": current_user_id},
+                                    {"user2_id": user_id},
+                                ]
+                            },
+                            {
+                                "$and": [
+                                    {"user1_id": user_id},
+                                    {"user2_id": current_user_id},
+                                ]
+                            },
+                        ]
+                    },
+                    {"status": "accepted"},
+                ]
+            }
+        )
+
+        if connection:
+            return (
+                jsonify(
+                    {
+                        "status": "connected",
+                        "connection_id": str(connection["_id"]),
+                        "connected_at": connection["updated_at"].isoformat(),
+                    }
+                ),
+                200,
+            )
+
+        # Check if there's a pending request from current user to target user
+        sent_request = connection_requests_collection.find_one(
+            {
+                "from_user_id": current_user_id,
+                "to_user_id": user_id,
+                "status": "pending",
+            }
+        )
+
+        if sent_request:
+            return (
+                jsonify(
+                    {
+                        "status": "pending_sent",
+                        "request_id": str(sent_request["_id"]),
+                        "created_at": sent_request["created_at"].isoformat(),
+                    }
+                ),
+                200,
+            )
+
+        # Check if there's a pending request from target user to current user
+        received_request = connection_requests_collection.find_one(
+            {
+                "from_user_id": user_id,
+                "to_user_id": current_user_id,
+                "status": "pending",
+            }
+        )
+
+        if received_request:
+            return (
+                jsonify(
+                    {
+                        "status": "pending_received",
+                        "request_id": str(received_request["_id"]),
+                        "created_at": received_request["created_at"].isoformat(),
+                    }
+                ),
+                200,
+            )
+
+        # No connection or pending request
+        return jsonify({"status": "not_connected"}), 200
+
+    except Exception as e:
+        print(f"Error checking connection status: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Get connection requests for current user
+@app.route("/connections/requests", methods=["GET"])
+@jwt_required()
+def get_connection_requests():
+    try:
+        current_user = get_jwt_identity()
+        current_user_obj = User.find_by_email(current_user)
+
+        if not current_user_obj:
+            return jsonify({"message": "User not found"}), 404
+
+        current_user_id = str(current_user_obj["_id"])
+
+        # Get pending connection requests for the current user
+        requests = list(
+            connection_requests_collection.find(
+                {"to_user_id": current_user_id, "status": "pending"}
+            ).sort("created_at", -1)
+        )
+
+        result = []
+        for request in requests:
+            # Get sender details
+            from_user = users_collection.find_one(
+                {"_id": ObjectId(request["from_user_id"])}
+            )
+
+            if from_user:
+                result.append(
+                    {
+                        "_id": str(request["_id"]),
+                        "created_at": request["created_at"].isoformat(),
+                        "from_user": {
+                            "_id": str(from_user["_id"]),
+                            "name": from_user["name"],
+                            "email": from_user["email"],
+                            "role": from_user["role"],
+                            "dept": from_user.get("dept", ""),
+                            "batch": from_user.get("batch", ""),
+                            "photo_url": from_user.get("photo_url", ""),
+                        },
+                    }
+                )
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(f"Error getting connection requests: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Send connection request
+@app.route("/connections/requests", methods=["POST"])
+@jwt_required()
+def send_connection_request():
+    try:
+        current_user = get_jwt_identity()
+        current_user_obj = User.find_by_email(current_user)
+
+        if not current_user_obj:
+            return jsonify({"message": "User not found"}), 404
+
+        data = request.get_json()
+        to_user_id = data.get("userId")
+
+        if not to_user_id:
+            return jsonify({"message": "Target user ID is required"}), 400
+
+        # Verify target user exists
+        to_user = users_collection.find_one({"_id": ObjectId(to_user_id)})
+        if not to_user:
+            return jsonify({"message": "Target user not found"}), 404
+
+        current_user_id = str(current_user_obj["_id"])
+
+        # Don't allow users to connect with themselves
+        if current_user_id == to_user_id:
+            return jsonify({"message": "Cannot connect with yourself"}), 400
+
+        # Check if already connected
+        existing_connection = connections_collection.find_one(
+            {
+                "$or": [
+                    {"$and": [{"user1_id": current_user_id}, {"user2_id": to_user_id}]},
+                    {"$and": [{"user1_id": to_user_id}, {"user2_id": current_user_id}]},
+                ]
+            }
+        )
+
+        if existing_connection:
+            return jsonify({"message": "Connection already exists"}), 400
+
+        # Check if there's already a pending request in either direction
+        existing_request = connection_requests_collection.find_one(
+            {
+                "$or": [
+                    {
+                        "$and": [
+                            {"from_user_id": current_user_id},
+                            {"to_user_id": to_user_id},
+                        ]
+                    },
+                    {
+                        "$and": [
+                            {"from_user_id": to_user_id},
+                            {"to_user_id": current_user_id},
+                        ]
+                    },
+                ],
+                "status": "pending",
+            }
+        )
+
+        if existing_request:
+            return jsonify({"message": "Connection request already exists"}), 400
+
+        # Create new connection request
+        new_request = {
+            "from_user_id": current_user_id,
+            "to_user_id": to_user_id,
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+
+        result = connection_requests_collection.insert_one(new_request)
+
+        return (
+            jsonify(
+                {
+                    "message": "Connection request sent successfully",
+                    "request_id": str(result.inserted_id),
+                }
+            ),
+            201,
+        )
+
+    except Exception as e:
+        print(f"Error sending connection request: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Respond to connection request
+@app.route("/connections/requests/<request_id>", methods=["PUT"])
+@jwt_required()
+def respond_to_connection_request(request_id):
+    try:
+        current_user = get_jwt_identity()
+        current_user_obj = User.find_by_email(current_user)
+
+        if not current_user_obj:
+            return jsonify({"message": "User not found"}), 404
+
+        data = request.get_json()
+        status = data.get("status")
+
+        if status not in ["accepted", "rejected"]:
+            return (
+                jsonify(
+                    {"message": "Invalid status. Must be 'accepted' or 'rejected'"}
+                ),
+                400,
+            )
+
+        current_user_id = str(current_user_obj["_id"])
+
+        # Find the connection request
+        connection_request = connection_requests_collection.find_one(
+            {
+                "_id": ObjectId(request_id),
+                "to_user_id": current_user_id,
+                "status": "pending",
+            }
+        )
+
+        if not connection_request:
+            return (
+                jsonify(
+                    {"message": "Connection request not found or not directed to you"}
+                ),
+                404,
+            )
+
+        # Update the request status
+        connection_requests_collection.update_one(
+            {"_id": ObjectId(request_id)},
+            {"$set": {"status": status, "updated_at": datetime.now(timezone.utc)}},
+        )
+
+        # If accepted, create a connection
+        if status == "accepted":
+            from_user_id = connection_request["from_user_id"]
+
+            new_connection = {
+                "user1_id": from_user_id,
+                "user2_id": current_user_id,
+                "status": "accepted",
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }
+
+            connections_collection.insert_one(new_connection)
+
+        return jsonify({"message": f"Connection request {status}"}), 200
+
+    except Exception as e:
+        print(f"Error responding to connection request: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Remove connection
+@app.route("/connections/<connection_id>", methods=["DELETE"])
+@jwt_required()
+def remove_connection(connection_id):
+    try:
+        current_user = get_jwt_identity()
+        current_user_obj = User.find_by_email(current_user)
+
+        if not current_user_obj:
+            return jsonify({"message": "User not found"}), 404
+
+        current_user_id = str(current_user_obj["_id"])
+
+        # Find the connection and verify that the current user is part of it
+        connection = connections_collection.find_one(
+            {
+                "_id": ObjectId(connection_id),
+                "$or": [{"user1_id": current_user_id}, {"user2_id": current_user_id}],
+            }
+        )
+
+        if not connection:
+            return (
+                jsonify(
+                    {
+                        "message": "Connection not found or you are not authorized to remove it"
+                    }
+                ),
+                404,
+            )
+
+        # Remove the connection
+        connections_collection.delete_one({"_id": ObjectId(connection_id)})
+
+        return jsonify({"message": "Connection removed successfully"}), 200
+
+    except Exception as e:
+        print(f"Error removing connection: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
+
+
+# Helper function to check if user is admin
+def is_admin(email):
+    user = User.find_by_email(email)
+    return user and user.get("role", "").lower() in ["admin", "staff"]
 
 
 # Feed routes
@@ -1890,16 +2426,12 @@ def get_alumni_mentees(alumnus_id):
     try:
         current_user = get_jwt_identity()
         user = User.find_by_email(current_user)  # Use email consistently
-        # Basic authorization check:
-        if user["role"].lower() not in [
-            "staff",
-            "admin",
-            "alumni",
-        ]:  # alumni can also see
-            return jsonify({"message": "Unauthorized"}), 403
 
-        # check weather the alumni is accessing other alumni details.
-        if user["role"] == "alumni" and user["email"] != alumnus_id:
+        # MODIFY THIS SECTION: Allow admins and staff to access any alumnus's mentees
+        if (
+            user["role"].lower() not in ["staff", "admin"]
+            and user["email"] != alumnus_id
+        ):
             return jsonify({"message": "Unauthorized"}), 403
 
         mentees_data = MentorshipRequest.get_mentees_by_mentor(
@@ -1919,15 +2451,11 @@ def get_alumni_posts(alumnus_id):
         current_user = get_jwt_identity()
         user = User.find_by_email(current_user)
 
-        # Basic authorization
-        if user["role"].lower() not in [
-            "staff",
-            "admin",
-            "alumni",
-        ]:  # alumni can also view it
-            return jsonify({"message": "Unauthorized"}), 403
-        # added condition to check weather the alumni user requesting for details is same.
-        if user["role"].lower() == "alumni" and user["email"] != alumnus_id:
+        # MODIFY THIS SECTION: Allow admins and staff to access any alumnus's posts
+        if (
+            user["role"].lower() not in ["staff", "admin"]
+            and user["email"] != alumnus_id
+        ):
             return jsonify({"message": "Unauthorized"}), 403
 
         posts = NewsEvent.get_by_author(alumnus_id)  # Pass author's email
@@ -2178,520 +2706,6 @@ def search_users():
     except Exception as e:
         print(f"Error searching users: {e}")
         return jsonify({"error": "Failed to search users"}), 500
-
-
-# Create a new collection for connection requests
-connection_requests = db["connection_requests"]
-
-
-@app.route("/connections/request", methods=["POST"])
-@jwt_required()
-def create_connection_request():
-    try:
-        current_user = get_jwt_identity()
-        user = User.find_by_email(current_user)
-        data = request.get_json()
-
-        # Validate required fields
-        if not data.get("to_user_id"):
-            return jsonify({"message": "Recipient user ID is required"}), 400
-
-        # Check if users exist
-        to_user = users_collection.find_one({"_id": ObjectId(data["to_user_id"])})
-        if not to_user:
-            return jsonify({"message": "Recipient user not found"}), 404
-
-        # Ensure users aren't the same
-        if str(user["_id"]) == data["to_user_id"]:
-            return (
-                jsonify({"message": "Cannot send connection request to yourself"}),
-                400,
-            )
-
-        # Check if a connection request already exists
-        existing_request = connection_requests.find_one(
-            {
-                "$or": [
-                    {
-                        "from_user_id": str(user["_id"]),
-                        "to_user_id": data["to_user_id"],
-                        "status": {"$in": ["pending", "accepted"]},
-                    },
-                    {
-                        "from_user_id": data["to_user_id"],
-                        "to_user_id": str(user["_id"]),
-                        "status": {"$in": ["pending", "accepted"]},
-                    },
-                ]
-            }
-        )
-
-        if existing_request:
-            if existing_request["status"] == "accepted":
-                return jsonify({"message": "Users are already connected"}), 400
-            else:
-                return jsonify({"message": "Connection request already exists"}), 400
-
-        # Create connection request
-        connection_request = {
-            "from_user_id": str(user["_id"]),
-            "to_user_id": data["to_user_id"],
-            "status": "pending",
-            "created_at": datetime.now(timezone.utc),
-        }
-
-        result = connection_requests.insert_one(connection_request)
-        return (
-            jsonify(
-                {"message": "Connection request sent", "id": str(result.inserted_id)}
-            ),
-            201,
-        )
-
-    except Exception as e:
-        print(f"Error creating connection request: {str(e)}")
-        return jsonify({"message": "An error occurred"}), 500
-
-
-@app.route("/connections/requests", methods=["GET"])
-@jwt_required()
-def get_connection_requests():
-    try:
-        current_user = get_jwt_identity()
-        user = User.find_by_email(current_user)
-        user_id = str(user["_id"])
-
-        # Get requests sent to the current user
-        received_requests = list(
-            connection_requests.find({"to_user_id": user_id, "status": "pending"})
-        )
-
-        # Format the response
-        formatted_requests = []
-        for req in received_requests:
-            # Get sender details
-            sender = users_collection.find_one({"_id": ObjectId(req["from_user_id"])})
-            if sender:
-                formatted_request = {
-                    "_id": str(req["_id"]),
-                    "from_user": {
-                        "_id": str(sender["_id"]),
-                        "name": sender.get("name", "Unknown"),
-                        "email": sender.get("email", ""),
-                        "role": sender.get("role", ""),
-                        "dept": sender.get("dept", ""),
-                        "batch": sender.get("batch", ""),
-                    },
-                    "status": req["status"],
-                    "created_at": req["created_at"].isoformat(),
-                }
-                formatted_requests.append(formatted_request)
-
-        return jsonify(formatted_requests), 200
-
-    except Exception as e:
-        print(f"Error getting connection requests: {str(e)}")
-        return jsonify({"message": "An error occurred"}), 500
-
-
-@app.route("/connections/request/<request_id>", methods=["PUT"])
-@jwt_required()
-def update_connection_request(request_id):
-    try:
-        current_user = get_jwt_identity()
-        user = User.find_by_email(current_user)
-        data = request.get_json()
-
-        # Validate input
-        if not data.get("status") or data["status"] not in ["accepted", "rejected"]:
-            return (
-                jsonify({"message": "Valid status (accepted/rejected) is required"}),
-                400,
-            )
-
-        # Verify the request exists and is directed to the current user
-        connection_request = connection_requests.find_one(
-            {
-                "_id": ObjectId(request_id),
-                "to_user_id": str(user["_id"]),
-                "status": "pending",
-            }
-        )
-
-        if not connection_request:
-            return (
-                jsonify(
-                    {"message": "Connection request not found or already processed"}
-                ),
-                404,
-            )
-
-        # Update the request status
-        connection_requests.update_one(
-            {"_id": ObjectId(request_id)},
-            {
-                "$set": {
-                    "status": data["status"],
-                    "updated_at": datetime.now(timezone.utc),
-                }
-            },
-        )
-
-        return jsonify({"message": f"Connection request {data['status']}"}), 200
-
-    except Exception as e:
-        print(f"Error updating connection request: {str(e)}")
-        return jsonify({"message": "An error occurred"}), 500
-
-
-@app.route("/connections", methods=["GET"])
-@jwt_required()
-def get_connections():
-    try:
-        current_user = get_jwt_identity()
-        user = User.find_by_email(current_user)
-        user_id = str(user["_id"])
-
-        # Get accepted connection requests where the current user is involved
-        connections = list(
-            connection_requests.find(
-                {
-                    "$or": [
-                        {"from_user_id": user_id, "status": "accepted"},
-                        {"to_user_id": user_id, "status": "accepted"},
-                    ]
-                }
-            )
-        )
-
-        # Format the response
-        formatted_connections = []
-        for conn in connections:
-            # Determine the other user in the connection
-            other_user_id = (
-                conn["to_user_id"]
-                if conn["from_user_id"] == user_id
-                else conn["from_user_id"]
-            )
-            other_user = users_collection.find_one({"_id": ObjectId(other_user_id)})
-
-            if other_user:
-                formatted_connection = {
-                    "_id": str(conn["_id"]),
-                    "user": {
-                        "_id": str(other_user["_id"]),
-                        "name": other_user.get("name", "Unknown"),
-                        "email": other_user.get("email", ""),
-                        "role": other_user.get("role", ""),
-                        "dept": other_user.get("dept", ""),
-                        "batch": other_user.get("batch", ""),
-                    },
-                    "connected_at": conn.get(
-                        "updated_at", conn["created_at"]
-                    ).isoformat(),
-                }
-                formatted_connections.append(formatted_connection)
-
-        return jsonify(formatted_connections), 200
-
-    except Exception as e:
-        print(f"Error getting connections: {str(e)}")
-        return jsonify({"message": "An error occurred"}), 500
-
-
-@app.route("/connections/stats", methods=["GET"])
-@jwt_required()
-def get_connection_stats():
-    try:
-        current_user = get_jwt_identity()
-        user = User.find_by_email(current_user)
-        user_id = str(user["_id"])
-        user_role = user.get("role", "").lower()
-        user_dept = user.get("dept", "")
-
-        # Get count of pending requests
-        pending_requests = connection_requests.count_documents(
-            {"to_user_id": user_id, "status": "pending"}
-        )
-
-        # Get count of accepted connections
-        all_connections = connection_requests.count_documents(
-            {
-                "$or": [
-                    {"from_user_id": user_id, "status": "accepted"},
-                    {"to_user_id": user_id, "status": "accepted"},
-                ]
-            }
-        )
-
-        stats = {
-            "pending_requests": pending_requests,
-            "total_connections": all_connections,
-        }
-
-        # Add role-specific statistics
-        if user_role == "student":
-            # Count alumni connections
-            alumni_connections = connection_requests.count_documents(
-                {
-                    "$or": [
-                        {"from_user_id": user_id, "status": "accepted"},
-                        {"to_user_id": user_id, "status": "accepted"},
-                    ],
-                    "$expr": {
-                        "$or": [
-                            {
-                                "$eq": [
-                                    {"$literal": "alumni"},
-                                    {
-                                        "$getField": {
-                                            "field": "role",
-                                            "input": {
-                                                "$ifNull": [
-                                                    {
-                                                        "$getField": {
-                                                            "field": "from_user",
-                                                            "input": "$$ROOT",
-                                                        }
-                                                    },
-                                                    {"$literal": {}},
-                                                ]
-                                            },
-                                        }
-                                    },
-                                ]
-                            },
-                            {
-                                "$eq": [
-                                    {"$literal": "alumni"},
-                                    {
-                                        "$getField": {
-                                            "field": "role",
-                                            "input": {
-                                                "$ifNull": [
-                                                    {
-                                                        "$getField": {
-                                                            "field": "to_user",
-                                                            "input": "$$ROOT",
-                                                        }
-                                                    },
-                                                    {"$literal": {}},
-                                                ]
-                                            },
-                                        }
-                                    },
-                                ]
-                            },
-                        ]
-                    },
-                }
-            )
-
-            # Count student connections
-            student_connections = connection_requests.count_documents(
-                {
-                    "$or": [
-                        {"from_user_id": user_id, "status": "accepted"},
-                        {"to_user_id": user_id, "status": "accepted"},
-                    ],
-                    "$expr": {
-                        "$or": [
-                            {
-                                "$eq": [
-                                    {"$literal": "student"},
-                                    {
-                                        "$getField": {
-                                            "field": "role",
-                                            "input": {
-                                                "$ifNull": [
-                                                    {
-                                                        "$getField": {
-                                                            "field": "from_user",
-                                                            "input": "$$ROOT",
-                                                        }
-                                                    },
-                                                    {"$literal": {}},
-                                                ]
-                                            },
-                                        }
-                                    },
-                                ]
-                            },
-                            {
-                                "$eq": [
-                                    {"$literal": "student"},
-                                    {
-                                        "$getField": {
-                                            "field": "role",
-                                            "input": {
-                                                "$ifNull": [
-                                                    {
-                                                        "$getField": {
-                                                            "field": "to_user",
-                                                            "input": "$$ROOT",
-                                                        }
-                                                    },
-                                                    {"$literal": {}},
-                                                ]
-                                            },
-                                        }
-                                    },
-                                ]
-                            },
-                        ]
-                    },
-                }
-            )
-
-            stats["student_connections"] = student_connections
-            stats["alumni_connections"] = alumni_connections
-
-        elif user_role == "alumni":
-            # Count student connections
-            student_connections = connection_requests.count_documents(
-                {
-                    "$or": [
-                        {"from_user_id": user_id, "status": "accepted"},
-                        {"to_user_id": user_id, "status": "accepted"},
-                    ],
-                    "$expr": {
-                        "$or": [
-                            {
-                                "$eq": [
-                                    {"$literal": "student"},
-                                    {
-                                        "$getField": {
-                                            "field": "role",
-                                            "input": {
-                                                "$ifNull": [
-                                                    {
-                                                        "$getField": {
-                                                            "field": "from_user",
-                                                            "input": "$$ROOT",
-                                                        }
-                                                    },
-                                                    {"$literal": {}},
-                                                ]
-                                            },
-                                        }
-                                    },
-                                ]
-                            },
-                            {
-                                "$eq": [
-                                    {"$literal": "student"},
-                                    {
-                                        "$getField": {
-                                            "field": "role",
-                                            "input": {
-                                                "$ifNull": [
-                                                    {
-                                                        "$getField": {
-                                                            "field": "to_user",
-                                                            "input": "$$ROOT",
-                                                        }
-                                                    },
-                                                    {"$literal": {}},
-                                                ]
-                                            },
-                                        }
-                                    },
-                                ]
-                            },
-                        ]
-                    },
-                }
-            )
-
-            stats["student_connections"] = student_connections
-
-        elif user_role == "staff":
-            # Count department students
-            dept_students = users_collection.count_documents(
-                {"role": "student", "dept": user_dept}
-            )
-            # Count department alumni
-            dept_alumni = users_collection.count_documents(
-                {"role": "alumni", "dept": user_dept}
-            )
-
-            stats["department_students"] = dept_students
-            stats["department_alumni"] = dept_alumni
-
-        return jsonify(stats), 200
-
-    except Exception as e:
-        print(f"Error getting connection stats: {str(e)}")
-        return jsonify({"message": "An error occurred"}), 500
-
-
-# Add this route for a simplified version of the connection stats
-@app.route("/profile/connections/<user_id>", methods=["GET"])
-@jwt_required()
-def get_profile_connections(user_id):
-    try:
-        current_user = get_jwt_identity()
-        requesting_user = User.find_by_email(current_user)
-
-        # Get user whose connections we're checking
-        target_user = users_collection.find_one({"_id": ObjectId(user_id)})
-        if not target_user:
-            return jsonify({"message": "User not found"}), 404
-
-        user_role = target_user.get("role", "").lower()
-        user_dept = target_user.get("dept", "")
-
-        # Build response based on role
-        response = {}
-
-        if user_role == "student":
-            # Student connections
-            student_connections = users_collection.count_documents(
-                {
-                    "role": "student",
-                    "dept": user_dept,
-                    "_id": {"$ne": ObjectId(user_id)},
-                }
-            )
-            # Alumni connections
-            alumni_connections = users_collection.count_documents(
-                {"role": "alumni", "dept": user_dept}
-            )
-
-            response = {"students": student_connections, "alumni": alumni_connections}
-
-        elif user_role == "alumni":
-            # Total connections (all users in their department)
-            total_connections = users_collection.count_documents(
-                {"dept": user_dept, "_id": {"$ne": ObjectId(user_id)}}
-            )
-            # Student connections
-            student_connections = users_collection.count_documents(
-                {"role": "student", "dept": user_dept}
-            )
-
-            response = {"total": total_connections, "students": student_connections}
-
-        elif user_role == "staff":
-            # Department students
-            dept_students = users_collection.count_documents(
-                {"role": "student", "dept": user_dept}
-            )
-            # Department alumni
-            dept_alumni = users_collection.count_documents(
-                {"role": "alumni", "dept": user_dept}
-            )
-
-            response = {
-                "departmentStudents": dept_students,
-                "departmentAlumni": dept_alumni,
-            }
-
-        return jsonify(response), 200
-
-    except Exception as e:
-        print(f"Error getting profile connections: {str(e)}")
-        return jsonify({"message": "An error occurred"}), 500
 
 
 if __name__ == "__main__":
