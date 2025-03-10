@@ -1,7 +1,8 @@
 // Keep these imports
 import React, { Suspense, useEffect } from 'react'; // Add Suspense import
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
+import { ConnectionsProvider } from './contexts/ConnectionsContext'; // Add ConnectionsProvider import
 import 'react-toastify/dist/ReactToastify.css';
 import Header from './components/layout/Header/Header';
 import Signin from './components/auth/Signin/Signin';
@@ -56,7 +57,7 @@ function App() {
 
 
   return (
-    <AuthProvider>
+    <ConnectionsProvider>
       <div className="app">
         {showHeader && <Header />}
         <main>
@@ -66,14 +67,6 @@ function App() {
             <Route path="/signup" element={<Signup />} />
 
             {/* Protected Routes - wrap with Suspense */}
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Profile />
-                </Suspense>
-              </ProtectedRoute>
-            } />
-
             <Route path="/feeds" element={
               <ProtectedRoute>
                 <Suspense fallback={<LoadingSpinner />}>
@@ -83,19 +76,19 @@ function App() {
             } />
 
             <Route path="/news" element={
-              <Suspense fallback={<LoadingSpinner />}>
-
-                <NewsList />
-              </Suspense>
-
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <NewsList />
+                </Suspense>
+              </ProtectedRoute>
             } />
 
             <Route path="/events" element={
-
-              <Suspense fallback={<LoadingSpinner />}>
-                <EventList />
-              </Suspense>
-
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <EventList />
+                </Suspense>
+              </ProtectedRoute>
             } />
 
             <Route path="/news-events/create" element={
@@ -241,7 +234,7 @@ function App() {
         {showChat && <CollapsibleChat />}
       </div>
       <ToastContainer position="top-right" autoClose={3000} />
-    </AuthProvider>
+    </ConnectionsProvider>
   );
 }
 

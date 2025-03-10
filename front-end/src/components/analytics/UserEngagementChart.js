@@ -13,7 +13,7 @@ import {
     Legend,
     ArcElement
 } from 'chart.js';
-import { Card, Row, Col, Table, Button, Form, InputGroup } from 'react-bootstrap';
+import { Card, Row, Col, Table, Button, Form, InputGroup, Alert, Spinner } from 'react-bootstrap';
 import {
     FaUsers, FaChartBar, FaUniversity, FaCalendarAlt, FaUserCircle,
     FaEnvelope, FaSearch, FaFilter, FaUserAlt, FaUserPlus,
@@ -48,6 +48,7 @@ const UserEngagementChart = ({ data }) => {
     const [roleFilter, setRoleFilter] = useState('all');
     const [departmentFilter, setDepartmentFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState('all');
+    const [error, setError] = useState(null);
 
     // Fetch users for the users list tab
     useEffect(() => {
@@ -55,11 +56,31 @@ const UserEngagementChart = ({ data }) => {
             if (activeTab === 'usersList') {
                 try {
                     setLoading(true);
-                    const response = await alumniApi.getAllUsers('', null);
-                    setUsersList(response);
+                    setError(null);
+                    // Build the query string for filtering
+                    const queryString = new URLSearchParams({
+                        role: roleFilter !== 'all' ? roleFilter : '',
+                        dept: departmentFilter !== 'all' ? departmentFilter : '',
+                    }).toString();
+
+                    const response = await alumniApi.getAllUsers(queryString, user?.authToken);
+
+                    // Check if response.users exists and is an array
+                    if (response && response.users && Array.isArray(response.users)) {
+                        setUsersList(response.users);
+                    } else if (response && Array.isArray(response)) {
+                        // If response itself is an array
+                        setUsersList(response);
+                    } else {
+                        console.error("Unexpected response format:", response);
+                        setUsersList([]);
+                        setError("Received unexpected data format from server");
+                    }
                 } catch (error) {
                     console.error("Error fetching users:", error);
+                    setError("Failed to load users. Please try again later.");
                     toast.error("Failed to load users");
+                    setUsersList([]);
                 } finally {
                     setLoading(false);
                 }
@@ -67,7 +88,7 @@ const UserEngagementChart = ({ data }) => {
         };
 
         fetchUsers();
-    }, [activeTab]);
+    }, [activeTab, roleFilter, departmentFilter, user?.authToken]);
 
     if (!data) {
         return <div>No data available for User Engagement.</div>;
@@ -267,18 +288,8 @@ const UserEngagementChart = ({ data }) => {
         }
     };
 
-    // Filter users based on search and filters
-    const filteredUsers = usersList.filter(user => {
-        // Apply role filter
-        if (roleFilter !== 'all' && user.role !== roleFilter) {
-            return false;
-        }
-
-        // Apply department filter
-        if (departmentFilter !== 'all' && user.dept !== departmentFilter) {
-            return false;
-        }
-
+    // Safely filter users - ensure usersList is an array before filtering
+    const filteredUsers = Array.isArray(usersList) ? usersList.filter(user => {
         // Apply search term
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -291,10 +302,12 @@ const UserEngagementChart = ({ data }) => {
         }
 
         return true;
-    });
+    }) : [];
 
     // Extract unique departments for filter
-    const departments = Array.from(new Set(usersList.map(user => user.dept).filter(Boolean)));
+    const departments = Array.isArray(usersList)
+        ? Array.from(new Set(usersList.map(user => user.dept).filter(Boolean)))
+        : [];
 
     return (
         <div>
@@ -501,9 +514,14 @@ const UserEngagementChart = ({ data }) => {
                     {activeTab === 'usersList' && (
                         <>
                             {loading ? (
-                                <div className="text-center py-4">Loading users...</div>
+                                <div className="text-center py-4">
+                                    <Spinner animation="border" variant="primary" />
+                                    <p className="mt-2">Loading users...</p>
+                                </div>
+                            ) : error ? (
+                                <Alert variant="danger">{error}</Alert>
                             ) : filteredUsers.length === 0 ? (
-                                <div className="text-center py-4">No users found matching the criteria.</div>
+                                <Alert variant="info">No users found matching the criteria.</Alert>
                             ) : (
                                 <Table striped bordered hover responsive>
                                     <thead>
