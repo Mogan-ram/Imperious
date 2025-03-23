@@ -190,6 +190,11 @@
     flex: 1;
 }
 
+.event-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .event-title {
     font-size: 1.25rem;
     font-weight: 700;
@@ -222,6 +227,42 @@
     font-size: 0.95rem;
     line-height: 1.5;
     margin-bottom: 0;
+}
+
+/* Registration link styles */
+.registration-link {
+    color: #8a2be2;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.registration-link:hover {
+    color: #6d28d9;
+    text-decoration: underline;
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    padding: 0.3em 0.6em;
+    font-size: 0.75em;
+}
+
+/* Button styling for event actions */
+.event-actions button {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.event-actions button:hover {
+    transform: translateY(-2px);
 }
 
 /* Responsive Adjustments */
@@ -267,6 +308,14 @@
     .event-time {
         width: 55px;
     }
+
+    .event-meta {
+        flex-direction: column;
+    }
+
+    .meta-item {
+        margin-bottom: 0.5rem;
+    }
 }
 
 @media (max-width: 575.98px) {
@@ -294,5 +343,9 @@
 
     .event-description {
         font-size: 0.9rem;
+    }
+
+    .event-card {
+        padding: 1rem;
     }
 }

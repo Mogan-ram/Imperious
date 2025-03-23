@@ -1,13 +1,12 @@
 // src/components/news-events/NewsList/NewsList.js
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Badge, Button } from 'react-bootstrap';
-import { FaCalendarAlt, FaUser, FaPlus } from 'react-icons/fa';
+import { FaCalendarAlt, FaUser, FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import { newsEventsService } from '../../../services/api/news-events';
 import { useAuth } from '../../../contexts/AuthContext';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import Pagination from 'react-bootstrap/Pagination';
-// import './NewsListStyles.css';
 import { toast } from 'react-toastify';
 import './NewsListStyles.css';
 
@@ -19,52 +18,114 @@ const NewsList = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchNews = async () => {
-            try {
-                setLoading(true);
-                const response = await newsEventsService.getAll(page, 'news');
-
-                if (response.data && response.data.items) {
-                    // All news for main content
-                    setAllNews(response.data.items);
-                    setTotalPages(response.data.pages);
-
-                    // Sort by created_at for trending (newest first)
-                    const sorted = [...response.data.items].sort((a, b) =>
-                        new Date(b.created_at) - new Date(a.created_at)
-                    );
-
-                    // Take first 5 for trending
-                    setTrendingNews(sorted.slice(0, 5));
-
-                    // Filter recommended news based on user's department if logged in
-                    if (user && user.dept) {
-                        const deptNews = response.data.items.filter(
-                            item => item.author && item.author.dept === user.dept
-                        );
-                        setRecommendedNews(deptNews.slice(0, 5));
-                    } else {
-                        // If no user or no department, just use random 5 news items
-                        const shuffled = [...response.data.items].sort(() => 0.5 - Math.random());
-                        setRecommendedNews(shuffled.slice(0, 5));
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching news:', error);
-                toast.error('Failed to load news');
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchNews();
     }, [page, user]);
+
+    const fetchNews = async () => {
+        try {
+            setLoading(true);
+            const response = await newsEventsService.getAll(page, 'news');
+
+            if (response.data && response.data.items) {
+                // All news for main content
+                setAllNews(response.data.items);
+                setTotalPages(response.data.pages);
+
+                // Sort by created_at for trending (newest first)
+                const sorted = [...response.data.items].sort((a, b) =>
+                    new Date(b.created_at) - new Date(a.created_at)
+                );
+
+                // Take first 5 for trending
+                setTrendingNews(sorted.slice(0, 5));
+
+                // Filter recommended news based on user's department if logged in
+                if (user && user.dept) {
+                    const deptNews = response.data.items.filter(
+                        item => item.author && item.author.dept === user.dept
+                    );
+                    setRecommendedNews(deptNews.slice(0, 5));
+                } else {
+                    // If no user or no department, just use random 5 news items
+                    const shuffled = [...response.data.items].sort(() => 0.5 - Math.random());
+                    setRecommendedNews(shuffled.slice(0, 5));
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching news:', error);
+            toast.error('Failed to load news');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handlePageChange = (newPage) => {
         setPage(newPage);
         window.scrollTo(0, 0);
+    };
+
+    // Check if user can edit or delete a news item
+    const canEdit = (newsItem) => {
+        if (!user) return false;
+
+        // Only the author can edit
+        return user._id === newsItem.author_id;
+    };
+
+    const canDelete = (newsItem) => {
+        if (!user) return false;
+
+        const userRole = user.role.toLowerCase();
+        const authorId = newsItem.author_id;
+
+        // Staff can delete their own news and alumni news
+        if (userRole === 'staff') {
+            if (user._id === authorId) return true;
+
+            // If the news was created by an alumni, staff can delete it
+            const authorRole = newsItem.author?.role?.toLowerCase();
+            return authorRole === 'alumni';
+        }
+
+        // Alumni can only delete their own news
+        if (userRole === 'alumni') {
+            return user._id === authorId;
+        }
+
+        return false;
+    };
+
+    const handleEdit = (newsId) => {
+        navigate(`/news-events/${newsId}/edit`);
+    };
+
+    const handleDelete = async (newsId) => {
+        if (window.confirm('Are you sure you want to delete this news item?')) {
+            try {
+                setLoading(true);
+                await newsEventsService.delete(newsId);
+
+                // Update all news lists after deletion
+                const updatedAllNews = allNews.filter(item => item._id !== newsId);
+                setAllNews(updatedAllNews);
+
+                const updatedTrendingNews = trendingNews.filter(item => item._id !== newsId);
+                setTrendingNews(updatedTrendingNews);
+
+                const updatedRecommendedNews = recommendedNews.filter(item => item._id !== newsId);
+                setRecommendedNews(updatedRecommendedNews);
+
+                toast.success('News deleted successfully');
+            } catch (error) {
+                console.error('Error deleting news:', error);
+                toast.error('Failed to delete news');
+            } finally {
+                setLoading(false);
+            }
+        }
     };
 
     if (loading) {
@@ -103,6 +164,22 @@ const NewsList = () => {
         return deptColors[dept] || 'dark';
     };
 
+    // Function to get appropriate badge color based on role
+    const getRoleBadgeColor = (role) => {
+        if (!role) return 'secondary';
+
+        switch (role.toLowerCase()) {
+            case 'staff':
+                return 'primary';
+            case 'alumni':
+                return 'success';
+            case 'student':
+                return 'info';
+            default:
+                return 'secondary';
+        }
+    };
+
     return (
         <div className="news-page">
             <Container fluid className="py-4">
@@ -133,9 +210,12 @@ const NewsList = () => {
                                         {item.image_url ? (
                                             <div className="trending-thumbnail">
                                                 <img
-                                                    src={`http://localhost:5000${item.image_url}`}
+                                                    src={item.image_url.startsWith('http')
+                                                        ? item.image_url
+                                                        : `http://localhost:5000${item.image_url}`}
                                                     alt={item.title}
                                                     onError={(e) => {
+                                                        console.log('Image load error:', e);
                                                         e.target.src = 'https://via.placeholder.com/100x70?text=News';
                                                     }}
                                                 />
@@ -171,9 +251,12 @@ const NewsList = () => {
                                             <div className="featured-img-container">
                                                 <Card.Img
                                                     variant="top"
-                                                    src={`http://localhost:5000${allNews[0].image_url}`}
+                                                    src={allNews[0].image_url.startsWith('http')
+                                                        ? allNews[0].image_url
+                                                        : `http://localhost:5000${allNews[0].image_url}`}
                                                     className="featured-img"
                                                     onError={(e) => {
+                                                        console.log('Image load error:', e);
                                                         e.target.src = 'https://via.placeholder.com/800x400?text=Featured+News';
                                                     }}
                                                 />
@@ -184,11 +267,41 @@ const NewsList = () => {
                                             </div>
                                         )}
                                         <Card.Body>
-                                            {allNews[0].author && allNews[0].author.dept && (
-                                                <Badge bg={getDeptBadgeColor(allNews[0].author.dept)} className="mb-2">
-                                                    {allNews[0].author.dept}
-                                                </Badge>
-                                            )}
+                                            <div className="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    {allNews[0].author && allNews[0].author.dept && (
+                                                        <Badge bg={getDeptBadgeColor(allNews[0].author.dept)} className="me-2">
+                                                            {allNews[0].author.dept}
+                                                        </Badge>
+                                                    )}
+                                                    {allNews[0].author && allNews[0].author.role && (
+                                                        <Badge bg={getRoleBadgeColor(allNews[0].author.role)}>
+                                                            {allNews[0].author.role}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="news-actions">
+                                                    {canEdit(allNews[0]) && (
+                                                        <Button
+                                                            variant="outline-primary"
+                                                            size="sm"
+                                                            className="me-2"
+                                                            onClick={() => handleEdit(allNews[0]._id)}
+                                                        >
+                                                            <FaEdit />
+                                                        </Button>
+                                                    )}
+                                                    {canDelete(allNews[0]) && (
+                                                        <Button
+                                                            variant="outline-danger"
+                                                            size="sm"
+                                                            onClick={() => handleDelete(allNews[0]._id)}
+                                                        >
+                                                            <FaTrash />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
                                             <Card.Title className="featured-title">{allNews[0].title}</Card.Title>
                                             <Card.Text className="featured-excerpt">
                                                 {allNews[0].description.substring(0, 150)}
@@ -217,9 +330,12 @@ const NewsList = () => {
                                             {item.image_url ? (
                                                 <Card.Img
                                                     variant="top"
-                                                    src={`http://localhost:5000${item.image_url}`}
+                                                    src={item.image_url.startsWith('http')
+                                                        ? item.image_url
+                                                        : `http://localhost:5000${item.image_url}`}
                                                     className="news-card-img"
                                                     onError={(e) => {
+                                                        console.log('Image load error:', e);
                                                         e.target.src = 'https://via.placeholder.com/400x200?text=News';
                                                     }}
                                                 />
@@ -229,20 +345,50 @@ const NewsList = () => {
                                                 </div>
                                             )}
                                             <Card.Body>
-                                                {item.author && item.author.dept && (
-                                                    <Badge bg={getDeptBadgeColor(item.author.dept)} className="mb-2">
-                                                        {item.author.dept}
-                                                    </Badge>
-                                                )}
+                                                <div className="d-flex justify-content-between align-items-start mb-2">
+                                                    <div>
+                                                        {item.author && item.author.dept && (
+                                                            <Badge bg={getDeptBadgeColor(item.author.dept)} className="me-1">
+                                                                {item.author.dept}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="news-actions">
+                                                        {canEdit(item) && (
+                                                            <Button
+                                                                variant="outline-primary"
+                                                                size="sm"
+                                                                className="me-1 btn-sm"
+                                                                onClick={() => handleEdit(item._id)}
+                                                            >
+                                                                <FaEdit />
+                                                            </Button>
+                                                        )}
+                                                        {canDelete(item) && (
+                                                            <Button
+                                                                variant="outline-danger"
+                                                                size="sm"
+                                                                className="btn-sm"
+                                                                onClick={() => handleDelete(item._id)}
+                                                            >
+                                                                <FaTrash />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                                 <Card.Title className="news-title">{item.title}</Card.Title>
                                                 <Card.Text className="news-excerpt">
                                                     {item.description.substring(0, 100)}
                                                     {item.description.length > 100 ? '...' : ''}
                                                 </Card.Text>
-                                                <div className="news-meta">
+                                                <div className="news-meta d-flex justify-content-between align-items-center">
                                                     <small>
                                                         <FaCalendarAlt className="me-1" />
                                                         {new Date(item.created_at).toLocaleDateString()}
+                                                    </small>
+                                                    <small>
+                                                        <FaUser className="me-1" />
+                                                        {item.author ? item.author.name : 'Unknown'}
                                                     </small>
                                                 </div>
                                             </Card.Body>
@@ -282,9 +428,12 @@ const NewsList = () => {
                                         {item.image_url ? (
                                             <div className="recommended-thumbnail">
                                                 <img
-                                                    src={`http://localhost:5000${item.image_url}`}
+                                                    src={item.image_url.startsWith('http')
+                                                        ? item.image_url
+                                                        : `http://localhost:5000${item.image_url}`}
                                                     alt={item.title}
                                                     onError={(e) => {
+                                                        console.log('Image load error:', e);
                                                         e.target.src = 'https://via.placeholder.com/100x70?text=News';
                                                     }}
                                                 />

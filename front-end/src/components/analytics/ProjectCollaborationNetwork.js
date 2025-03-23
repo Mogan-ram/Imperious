@@ -4,9 +4,9 @@ import { Card, Form, Row, Col, Button, Alert, Badge, Spinner } from 'react-boots
 import * as d3 from 'd3';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import { FaFilter, FaDownload, FaInfoCircle, FaLock } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
-import { FaFilter, FaDownload, FaInfoCircle } from 'react-icons/fa';
+import { analyticsService } from '../../services/api/analytics';
 
 const ProjectCollaborationNetwork = () => {
     const svgRef = useRef(null);
@@ -20,64 +20,107 @@ const ProjectCollaborationNetwork = () => {
     const [showDetails, setShowDetails] = useState(false);
     const [departments, setDepartments] = useState([]);
     const [technologies, setTechnologies] = useState([]);
+    const [isAuthorized, setIsAuthorized] = useState(true);
 
     const navigate = useNavigate();
-    const { authToken } = useAuth();
+    const { user } = useAuth();
 
-    // Fetch project data
+    // Check if user has permission to access analytics
+    useEffect(() => {
+        if (user) {
+            const hasAccess = user.role && ['staff', 'admin'].includes(user.role.toLowerCase());
+            setIsAuthorized(hasAccess);
+        }
+    }, [user]);
+
+    // Fetch project data for analytics
     const fetchProjects = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
-            const response = await axios.get('/projects', {
-                headers: { Authorization: `Bearer ${authToken}` }
-            });
+            // Check authorization
+            if (!isAuthorized) {
+                setError("You don't have permission to access this data");
+                setLoading(false);
+                return;
+            }
 
-            if (response.data) {
-                setProjects(response.data);
+            // Use the analytics service to get all projects
+            const allProjects = await analyticsService.getAllProjects();
+            console.log('Fetched projects for network:', allProjects?.length || 0);
+
+            if (Array.isArray(allProjects) && allProjects.length > 0) {
+                setProjects(allProjects);
 
                 // Extract unique departments and technologies
                 const depts = new Set();
                 const techs = new Set();
 
-                response.data.forEach(project => {
+                allProjects.forEach(project => {
+                    // Collect departments from various possible sources
                     if (project.department) depts.add(project.department);
                     if (project.student?.dept) depts.add(project.student.dept);
-                    if (project.techStack && Array.isArray(project.techStack)) {
-                        project.techStack.forEach(tech => techs.add(tech));
+                    if (project.created_by_dept) depts.add(project.created_by_dept);
+                    if (project.creator?.dept) depts.add(project.creator.dept);
+
+                    // Collect technologies from the project
+                    const techStack = project.techStack || project.tech_stack || [];
+                    if (Array.isArray(techStack)) {
+                        techStack.forEach(tech => techs.add(tech));
                     }
                 });
 
                 setDepartments(Array.from(depts));
                 setTechnologies(Array.from(techs));
+            } else {
+                setProjects([]);
+                if (allProjects?.length === 0) {
+                    setError("No projects found in the system. Please create some projects first.");
+                } else {
+                    setError("Failed to load project data. Please try again later.");
+                }
             }
-
-            setError(null);
         } catch (error) {
             console.error("Error fetching projects:", error);
-            setError("Failed to load project data. Please try again later.");
+
+            // Provide more specific error message based on the status code
+            if (error.response?.status === 403) {
+                setError("You don't have permission to access this data.");
+            } else {
+                setError("Failed to load project data. Please try again later.");
+            }
         } finally {
             setLoading(false);
         }
-    }, [authToken]);
+    }, [isAuthorized]);
 
     // Generate network data based on projects and filters
     const generateNetworkData = useCallback(() => {
-        if (!projects || projects.length === 0) return;
+        if (!projects || projects.length === 0) {
+            setNetworkData({ nodes: [], links: [] });
+            return;
+        }
+
+        console.log('Generating network data from projects:', projects.length);
 
         // Apply filters
         let filteredProjects = [...projects];
 
         if (departmentFilter !== 'all') {
-            filteredProjects = filteredProjects.filter(project =>
-                project.department === departmentFilter ||
-                project.student?.dept === departmentFilter
-            );
+            filteredProjects = filteredProjects.filter(project => {
+                const projectDept = project.department ||
+                    project.student?.dept ||
+                    project.created_by_dept ||
+                    project.creator?.dept;
+                return projectDept === departmentFilter;
+            });
         }
 
         if (techFilter !== 'all') {
-            filteredProjects = filteredProjects.filter(project =>
-                project.techStack && project.techStack.includes(techFilter)
-            );
+            filteredProjects = filteredProjects.filter(project => {
+                const techStack = project.techStack || project.tech_stack || [];
+                return techStack.includes(techFilter);
+            });
         }
 
         // Create nodes and links for the network
@@ -97,8 +140,8 @@ const ProjectCollaborationNetwork = () => {
                     id: projectNodeId,
                     name: project.title || 'Untitled Project',
                     type: 'project',
-                    techStack: project.techStack || [],
-                    department: project.department || 'Unknown',
+                    techStack: project.techStack || project.tech_stack || [],
+                    department: project.department || project.creator?.dept || 'Unknown',
                     progress: project.progress || 0,
                     _id: project._id
                 };
@@ -107,27 +150,32 @@ const ProjectCollaborationNetwork = () => {
                 nodeMap.set(projectNodeId, projectNode);
             }
 
-            // Add student node if it exists and create link
-            if (project.student && project.student.name) {
-                const studentNodeId = `student-${project.student._id || project.student.name}`;
+            // Handle project creator
+            const creatorId = project.created_by ||
+                (project.creator?._id || project.creator?.id);
 
-                if (!nodeMap.has(studentNodeId)) {
-                    const studentNode = {
-                        id: studentNodeId,
-                        name: project.student.name,
+            if (creatorId) {
+                const creatorNodeId = `student-${creatorId}`;
+                const creatorName = project.creator?.name || 'Project Creator';
+                const creatorDept = project.creator?.dept || project.department || 'Unknown';
+
+                if (!nodeMap.has(creatorNodeId)) {
+                    const creatorNode = {
+                        id: creatorNodeId,
+                        name: creatorName,
                         type: 'student',
-                        department: project.student.dept || 'Unknown',
-                        email: project.student.email || '',
-                        _id: project.student._id
+                        department: creatorDept,
+                        email: project.creator?.email || '',
+                        _id: creatorId
                     };
 
-                    nodes.push(studentNode);
-                    nodeMap.set(studentNodeId, studentNode);
+                    nodes.push(creatorNode);
+                    nodeMap.set(creatorNodeId, creatorNode);
                 }
 
-                // Create link between student and project
+                // Create link between creator and project
                 links.push({
-                    source: studentNodeId,
+                    source: creatorNodeId,
                     target: projectNodeId,
                     type: 'owner'
                 });
@@ -136,18 +184,31 @@ const ProjectCollaborationNetwork = () => {
             // Add collaborators and create links
             if (project.collaborators && Array.isArray(project.collaborators)) {
                 project.collaborators.forEach(collaborator => {
-                    if (!collaborator.id || !collaborator.name) return;
+                    // Extract collaborator data (handle different formats)
+                    let collabId = null;
+                    let collabName = 'Collaborator';
+                    let collabDept = 'Unknown';
 
-                    const collaboratorNodeId = `student-${collaborator.id}`;
+                    // Handle both object-style and ID-style collaborators
+                    if (typeof collaborator === 'object') {
+                        collabId = collaborator.id || collaborator._id || collaborator.user_id;
+                        collabName = collaborator.name || 'Collaborator';
+                        collabDept = collaborator.dept || project.department || 'Unknown';
+                    } else if (typeof collaborator === 'string') {
+                        collabId = collaborator;
+                    }
+
+                    if (!collabId) return;
+
+                    const collaboratorNodeId = `student-${collabId}`;
 
                     if (!nodeMap.has(collaboratorNodeId)) {
                         const collaboratorNode = {
                             id: collaboratorNodeId,
-                            name: collaborator.name,
+                            name: collabName,
                             type: 'student',
-                            department: collaborator.dept || 'Unknown',
-                            email: collaborator.email || '',
-                            _id: collaborator.id
+                            department: collabDept,
+                            _id: collabId
                         };
 
                         nodes.push(collaboratorNode);
@@ -164,17 +225,19 @@ const ProjectCollaborationNetwork = () => {
             }
 
             // Add mentor link if exists
-            if (project.mentor && project.mentor.name) {
-                const mentorNodeId = `alumni-${project.mentor._id || project.mentor.name}`;
+            const mentor = project.mentor || {};
+            if (mentor.name || mentor._id || mentor.id) {
+                const mentorId = mentor._id || mentor.id || `mentor-${project._id}`;
+                const mentorNodeId = `alumni-${mentorId}`;
 
                 if (!nodeMap.has(mentorNodeId)) {
                     const mentorNode = {
                         id: mentorNodeId,
-                        name: project.mentor.name,
+                        name: mentor.name || 'Mentor',
                         type: 'alumni',
-                        department: project.mentor.dept || 'Unknown',
-                        email: project.mentor.email || '',
-                        _id: project.mentor._id
+                        department: mentor.dept || project.department || 'Unknown',
+                        email: mentor.email || '',
+                        _id: mentorId
                     };
 
                     nodes.push(mentorNode);
@@ -228,6 +291,7 @@ const ProjectCollaborationNetwork = () => {
             }
         });
 
+        console.log(`Network data generated: ${nodes.length} nodes, ${links.length} links`);
         setNetworkData({ nodes, links });
     }, [projects, departmentFilter, techFilter]);
 
@@ -245,11 +309,11 @@ const ProjectCollaborationNetwork = () => {
     useEffect(() => {
         if (!svgRef.current || !networkData.nodes.length) return;
 
-        const width = svgRef.current.clientWidth;
-        const height = 600;
-
-        // Clear SVG
+        // Clear any existing visualizations
         d3.select(svgRef.current).selectAll("*").remove();
+
+        const width = svgRef.current.clientWidth || 800;
+        const height = 600;
 
         // Create SVG
         const svg = d3.select(svgRef.current)
@@ -311,7 +375,7 @@ const ProjectCollaborationNetwork = () => {
             .range(['#4CAF50', '#2196F3', '#FFC107']);
 
         const departmentColorScale = d3.scaleOrdinal()
-            .domain(departments)
+            .domain(departments.length ? departments : ['Unknown'])
             .range(d3.schemeCategory10);
 
         const linkColorScale = d3.scaleOrdinal()
@@ -357,7 +421,7 @@ const ProjectCollaborationNetwork = () => {
                 `;
 
                 if (d.type === 'project') {
-                    tooltipContent += `<br><span>Tech: ${d.techStack.join(', ')}</span>`;
+                    tooltipContent += `<br><span>Tech: ${(d.techStack || []).join(', ')}</span>`;
                     tooltipContent += `<br><span>Progress: ${d.progress}%</span>`;
                 }
 
@@ -543,6 +607,19 @@ const ProjectCollaborationNetwork = () => {
         }
     };
 
+    // If the user is not authorized, show access denied message
+    if (!isAuthorized) {
+        return (
+            <Alert variant="warning" className="d-flex align-items-center">
+                <FaLock className="me-3" size={24} />
+                <div>
+                    <h4 className="mb-2">Access Restricted</h4>
+                    <p className="mb-0">You don't have permission to access the collaboration network. This feature is available only for staff and admin users.</p>
+                </div>
+            </Alert>
+        );
+    }
+
     if (loading) {
         return (
             <Card>
@@ -556,8 +633,14 @@ const ProjectCollaborationNetwork = () => {
 
     if (error) {
         return (
-            <Alert variant="danger">
-                {error}
+            <Alert variant="danger" className="d-flex align-items-center">
+                <FaInfoCircle className="me-2" size={24} />
+                <div>
+                    <p className="mb-2">{error}</p>
+                    <Button variant="outline-danger" onClick={fetchProjects}>
+                        Try Again
+                    </Button>
+                </div>
             </Alert>
         );
     }
@@ -695,7 +778,7 @@ const ProjectCollaborationNetwork = () => {
 
                                             <h6>Technologies:</h6>
                                             <div className="mb-3">
-                                                {activeNode.techStack.map((tech, index) => (
+                                                {(activeNode.techStack || []).map((tech, index) => (
                                                     <Badge bg="info" className="me-1 mb-1" key={index}>
                                                         {tech}
                                                     </Badge>

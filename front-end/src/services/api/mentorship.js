@@ -5,8 +5,9 @@ export const mentorshipService = {
     createRequest: async (data) => {
         try {
             const response = await axios.post('/mentorship/request', data);
-            return response;
+            return response.data;
         } catch (error) {
+            console.error('Error creating mentorship request:', error);
             throw error;
         }
     },
@@ -14,27 +15,33 @@ export const mentorshipService = {
     getRequests: async () => {
         try {
             const response = await axios.get('/mentorship/requests');
-            return response;
+            console.log('Mentorship requests API response:', response.data);
+            return response.data;
         } catch (error) {
-            throw error;
+            console.error('Error getting mentorship requests:', error);
+            // Return empty array instead of throwing
+            return [];
         }
     },
-    //get all mentors
+
     getMentors: async () => {
         try {
             const response = await axios.get('/mentorship/mentors');
-            return response;
+            console.log('Mentors API response:', response.data);
+            return response.data;
         } catch (error) {
-            throw error;
+            console.error('Error getting mentors:', error);
+            // Return empty array instead of throwing
+            return [];
         }
     },
 
     updateRequest: async (requestId, status) => {
         try {
-            // CORRECTED URL:  /mentorship/request/:id
             const response = await axios.put(`/mentorship/request/${requestId}`, { status });
-            return response;
+            return response.data;
         } catch (error) {
+            console.error('Error updating mentorship request:', error);
             throw error;
         }
     },
@@ -42,18 +49,30 @@ export const mentorshipService = {
     getMentees: async () => {
         try {
             const response = await axios.get('/mentorship/my_mentees');
-            return response.data; // Return response.data, not the whole response
+            console.log('Mentees API response:', response.data);
+            // Ensure we return the data property
+            return response.data;
         } catch (error) {
-            throw error;
+            console.error('Error getting mentees:', error);
+            // Return empty object with expected structure instead of throwing
+            return {
+                project_groups: [],
+                mentees: [],
+                mentor: {
+                    name: "Unknown",
+                    dept: ""
+                },
+                mentees_count: 0
+            };
         }
     },
 
-    // NEW: Add ignoreRequest function
     ignoreRequest: async (requestId) => {
         try {
-            const response = await axios.put(`/mentorship/request/${requestId}/ignore`); // New endpoint
-            return response;
+            const response = await axios.put(`/mentorship/request/${requestId}/ignore`);
+            return response.data;
         } catch (error) {
+            console.error('Error ignoring mentorship request:', error);
             throw error;
         }
     }

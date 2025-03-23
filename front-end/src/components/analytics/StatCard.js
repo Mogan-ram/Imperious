@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
 
+
 /**
  * A reusable stat card component for dashboards
  * 
@@ -14,7 +15,7 @@ import { Card } from 'react-bootstrap';
  */
 const StatCard = ({ title, value, icon: Icon, color = "primary", percentage, footer }) => {
     return (
-        <Card className="stats-card mb-4">
+        <Card className="stats-card h-100 mb-4">
             <Card.Body>
                 <div className="d-flex justify-content-between align-items-center mb-2">
                     <div>

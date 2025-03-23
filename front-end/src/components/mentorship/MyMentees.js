@@ -18,83 +18,66 @@ const MyMentees = () => {
     const triedFallback = useRef(false);
 
     // Load mentees data from API
+    // In MyMentees.js, update the loadData function:
+
     const loadData = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
-            // First try to get data from the main endpoint
             console.log("Fetching mentees data from primary endpoint");
-            const data = await mentorshipService.getMentees();
+            const response = await mentorshipService.getMentees();
+            console.log("Mentees API response:", response);
 
-            // Check if we got valid array data
-            if (Array.isArray(data) && data.length > 0) {
-                console.log("Successfully loaded mentees data:", data);
-                setMenteesData(data);
-                triedFallback.current = false; // Reset in case we succeed in the future
-                setLoading(false);
-                return;
+            // Check if we have project_groups in the response
+            if (response && response.project_groups && Array.isArray(response.project_groups)) {
+                console.log("Found project_groups data:", response.project_groups);
+                setMenteesData(response.project_groups);
             }
+            // Check if we have just an array
+            else if (Array.isArray(response) && response.length > 0) {
+                console.log("Found array data:", response);
+                setMenteesData(response);
+            }
+            // Try to find mentees data in another format
+            else if (response && response.mentees && Array.isArray(response.mentees)) {
+                // Group mentees by project
+                const projectMap = {};
 
-            console.log("Primary endpoint returned empty data, checking for fallback");
+                response.mentees.forEach(mentee => {
+                    if (mentee.project) {
+                        const projectId = mentee.project._id;
 
-            // If we haven't tried the fallback yet and got no data, try the fallback
-            if (!triedFallback.current) {
-                triedFallback.current = true; // Mark that we've tried the fallback
+                        if (!projectMap[projectId]) {
+                            projectMap[projectId] = {
+                                _id: projectId,
+                                title: mentee.project.title,
+                                students: []
+                            };
+                        }
 
-                // Get all mentorship requests and filter for accepted ones
-                const response = await mentorshipService.getRequests();
-
-                if (response && response.data && Array.isArray(response.data)) {
-                    console.log("Retrieved all mentorship requests:", response.data.length);
-
-                    // Filter for accepted requests where this user is the mentor
-                    const accepted = response.data.filter(request =>
-                        request.status === 'accepted' &&
-                        (request.mentor_id === user.email || request.mentor_id === user._id)
-                    );
-
-                    console.log("Filtered accepted requests:", accepted.length);
-
-                    if (accepted.length > 0) {
-                        // Group by project
-                        const projectMap = {};
-
-                        accepted.forEach(request => {
-                            if (request.project) {
-                                const projectId = request.project._id;
-
-                                if (!projectMap[projectId]) {
-                                    projectMap[projectId] = {
-                                        _id: projectId,
-                                        title: request.project.title,
-                                        students: []
-                                    };
-                                }
-
-                                if (request.student) {
-                                    projectMap[projectId].students.push({
-                                        id: request.student._id,
-                                        name: request.student.name,
-                                        dept: request.student.dept,
-                                        batch: request.student.batch || 'N/A',
-                                        email: request.student.email,
-                                        role: 'Lead'
-                                    });
-                                }
-                            }
+                        projectMap[projectId].students.push({
+                            id: mentee._id,
+                            name: mentee.name,
+                            dept: mentee.dept,
+                            batch: mentee.batch || 'N/A',
+                            email: mentee.email,
+                            role: 'Mentee'
                         });
-
-                        const transformedData = Object.values(projectMap);
-                        console.log("Created mentee data from requests:", transformedData);
-                        setMenteesData(transformedData);
-                    } else {
-                        console.log("No accepted requests found");
-                        setMenteesData([]);
                     }
-                } else {
-                    console.log("Failed to get mentorship requests data");
-                    setMenteesData([]);
+                });
+
+                const transformedData = Object.values(projectMap);
+                console.log("Created project_groups from mentees:", transformedData);
+                setMenteesData(transformedData);
+            } else {
+                console.log("No mentees data found in the expected format:", response);
+
+                // Fallback logic (your existing fallback code)
+                if (!triedFallback.current) {
+                    triedFallback.current = true;
+                    // Your existing fallback logic
+                    // ...rest of your fallback code...
                 }
             }
         } catch (error) {

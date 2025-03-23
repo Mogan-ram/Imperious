@@ -4,8 +4,8 @@ import { Container, Row, Col, Form, Button, Card, Spinner, Alert } from 'react-b
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { jobService } from '../../services/api/jobs';
 import { useAuth } from '../../contexts/AuthContext';
+
 import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 import './JobForm.css';
 
 const JobForm = () => {

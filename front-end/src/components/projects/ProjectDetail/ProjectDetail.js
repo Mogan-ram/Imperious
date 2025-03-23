@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Card, Row, Col, Button, Badge, ListGroup, Alert, Spinner } from 'react-bootstrap';
-import { FaGithub, FaUserCircle, FaEnvelope, FaArrowLeft } from 'react-icons/fa';
-// import { projectService } from '../../services/api/projects';
-// import { projectService } from '../../services/api/projects';
+import {
+    Container, Card, Row, Col, Button, Badge, ListGroup, Alert,
+    Spinner, Tabs, Tab, ProgressBar, OverlayTrigger, Tooltip
+} from 'react-bootstrap';
+import {
+    FaGithub, FaUserCircle, FaEnvelope, FaArrowLeft, FaUsers,
+    FaCode, FaClock, FaCalendarAlt, FaEdit, FaTasks, FaUserAlt
+} from 'react-icons/fa';
 import { projectService } from '../../../services/api/projects';
 import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'react-toastify';
@@ -14,6 +18,7 @@ const ProjectDetail = () => {
     const [project, setProject] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState('overview');
     const { user } = useAuth();
     const navigate = useNavigate();
 
@@ -22,21 +27,35 @@ const ProjectDetail = () => {
             setLoading(true);
             try {
                 const response = await projectService.getProjectById(id);
+                console.log("Project data:", response);
 
-                if (response && response.data) {
+                // Handle different response formats
+                // Case 1: If response is the project object directly
+                if (response && (response.title || response._id)) {
+                    setProject(response);
+                }
+                // Case 2: If response has a data property (common in axios responses)
+                else if (response && response.data) {
                     setProject(response.data);
-                } else {
+                }
+                // Case 3: If no valid project data found
+                else {
                     setError('Project not found');
                 }
             } catch (err) {
                 console.error('Error fetching project:', err);
-                setError('Failed to load project details');
+                setError(`Failed to load project details: ${err.message}`);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchProjectDetails();
+        if (id) {
+            fetchProjectDetails();
+        } else {
+            setError('No project ID provided');
+            setLoading(false);
+        }
     }, [id]);
 
     const handleMessageClick = (recipient) => {
@@ -49,10 +68,7 @@ const ProjectDetail = () => {
 
     const handleViewProfile = (userId) => {
         if (userId) {
-            // Since your Profile component doesn't support URL parameters yet,
-            // we'll navigate to a placeholder route and you can implement it later
             navigate(`/profile/${userId}`);
-            toast.info("Profile viewing for other users will be implemented in a future update");
         } else {
             toast.error("Cannot view profile - user ID is missing");
         }
@@ -70,7 +86,7 @@ const ProjectDetail = () => {
     if (loading) {
         return (
             <Container className="py-5 text-center">
-                <Spinner animation="border" role="status">
+                <Spinner animation="border" role="status" className="text-primary">
                     <span className="visually-hidden">Loading...</span>
                 </Spinner>
                 <p className="mt-3">Loading project details...</p>
@@ -112,13 +128,25 @@ const ProjectDetail = () => {
         );
     }
 
-    // Determine if current user is creator, collaborator, or mentor
-    const isCreator = project.created_by === user._id || project.created_by === user.email;
-    const isCollaborator = project.collaborators &&
-        project.collaborators.some(c => c.id === user._id || c.id === user.email);
+    // Normalize data structure to account for different property names
+    const techStack = project.techStack || project.tech_stack || [];
+    const projectCreator = project.creator || {};
 
-    // This is a simplification - you might want to determine mentor status differently
-    const isMentor = user.role === 'alumni';
+    // Determine if current user is creator, collaborator, or mentor
+    const isCreator = user && (
+        project.created_by === user._id ||
+        project.created_by === user.email ||
+        (projectCreator._id && projectCreator._id === user._id)
+    );
+
+    const isCollaborator = user && project.collaborators &&
+        project.collaborators.some(c =>
+            c.id === user._id ||
+            c.id === user.email ||
+            c.email === user.email
+        );
+
+    const isMentor = user && user.role === 'alumni';
 
     return (
         <Container className="py-4 project-detail">
@@ -130,24 +158,35 @@ const ProjectDetail = () => {
                 <FaArrowLeft className="me-2" /> Back
             </Button>
 
-            <Card className="shadow-sm mb-4">
-                <Card.Header className="d-flex justify-content-between align-items-center bg-light">
+            <div className="mb-4">
+                <div className="d-flex justify-content-between align-items-start">
                     <div>
-                        <h2 className="mb-0">{project.title}</h2>
-                        <div className="d-flex mt-2">
+                        <h2 className="mb-2">{project.title}</h2>
+                        <div className="d-flex flex-wrap gap-2 align-items-center mb-3">
                             {getStatusBadge(project.progress)}
 
-                            {project.techStack && project.techStack.map((tech, index) => (
-                                <Badge
-                                    key={index}
-                                    bg="secondary"
-                                    className="ms-2"
-                                >
-                                    {tech}
-                                </Badge>
+                            {techStack.map((tech, index) => (
+                                <Badge key={index} bg="info" className="tech-badge">{tech}</Badge>
                             ))}
+
+                            {project.created_at && (
+                                <div className="ms-2 text-muted small">
+                                    <FaCalendarAlt className="me-1" />
+                                    Created: {new Date(project.created_at).toLocaleDateString()}
+                                </div>
+                            )}
                         </div>
                     </div>
+
+                    {isCreator && (
+                        <Button
+                            variant="outline-primary"
+                            onClick={() => navigate(`/projects/${id}/edit`)}
+                            className="btn-project"
+                        >
+                            <FaEdit className="me-2" /> Edit Project
+                        </Button>
+                    )}
 
                     {project.githubLink && (
                         <Button
@@ -155,108 +194,103 @@ const ProjectDetail = () => {
                             href={project.githubLink}
                             target="_blank"
                             rel="noopener noreferrer"
+                            className="btn-project ms-2"
                         >
                             <FaGithub className="me-2" /> GitHub Repository
                         </Button>
                     )}
-                </Card.Header>
+                </div>
+            </div>
 
-                <Card.Body>
-                    <h5>Abstract</h5>
-                    <Card.Text className="mb-4">{project.abstract}</Card.Text>
+            <Tabs
+                activeKey={activeTab}
+                onSelect={(k) => setActiveTab(k)}
+                className="mb-4"
+            >
+                <Tab eventKey="overview" title="Overview">
+                    <Row>
+                        <Col md={8}>
+                            <Card className="shadow-sm mb-4">
+                                <Card.Header className="bg-white">
+                                    <h5 className="mb-0">Project Details</h5>
+                                </Card.Header>
+                                <Card.Body>
+                                    <h6>Abstract</h6>
+                                    <p>{project.abstract || 'No abstract provided.'}</p>
 
-                    {project.progress !== undefined && (
-                        <div className="mb-4">
-                            <h5>Progress</h5>
-                            <div className="progress" style={{ height: '25px' }}>
-                                <div
-                                    className={`progress-bar bg-${project.progress === 100 ? 'success' :
-                                        project.progress > 50 ? 'primary' :
-                                            project.progress > 0 ? 'warning' : 'secondary'}`}
-                                    role="progressbar"
-                                    style={{ width: `${project.progress}%` }}
-                                    aria-valuenow={project.progress}
-                                    aria-valuemin="0"
-                                    aria-valuemax="100"
-                                >
-                                    {project.progress}%
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                                    {project.progress !== undefined && (
+                                        <>
+                                            <h6 className="mt-4">Progress</h6>
+                                            <div className="d-flex align-items-center mb-2">
+                                                <div className="flex-grow-1 me-3">
+                                                    <ProgressBar
+                                                        now={project.progress}
+                                                        variant={
+                                                            project.progress === 100 ? 'success' :
+                                                                project.progress > 50 ? 'primary' :
+                                                                    project.progress > 0 ? 'warning' : 'secondary'
+                                                        }
+                                                        style={{ height: '12px' }}
+                                                    />
+                                                </div>
+                                                <div className="text-center">
+                                                    <span className="fw-bold">{project.progress}%</span>
+                                                </div>
+                                            </div>
+                                            <div className="d-flex justify-content-between text-muted small">
+                                                <span>Not Started</span>
+                                                <span>In Progress</span>
+                                                <span>Completed</span>
+                                            </div>
+                                        </>
+                                    )}
 
-                    <h5>Modules</h5>
-                    {project.modules && project.modules.length > 0 ? (
-                        <ListGroup className="mb-4">
-                            {project.modules.map((module, index) => (
-                                <ListGroup.Item key={index} className="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>{module.name}</strong>
-                                        {module.githubLink && (
-                                            <a
-                                                href={module.githubLink}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="ms-2 text-decoration-none"
-                                            >
-                                                <FaGithub /> GitHub
-                                            </a>
-                                        )}
-                                    </div>
-                                    <Badge
-                                        bg={module.status === 'completed' ? 'success' : 'secondary'}
-                                    >
-                                        {module.status || 'Pending'}
-                                    </Badge>
-                                </ListGroup.Item>
-                            ))}
-                        </ListGroup>
-                    ) : (
-                        <Alert variant="info">No modules defined for this project.</Alert>
-                    )}
-                </Card.Body>
-            </Card>
+                                    {project.description && (
+                                        <>
+                                            <h6 className="mt-4">Description</h6>
+                                            <p>{project.description}</p>
+                                        </>
+                                    )}
+                                </Card.Body>
+                            </Card>
+                        </Col>
 
-            <Card className="shadow-sm">
-                <Card.Header className="bg-light">
-                    <h4 className="mb-0">Team</h4>
-                </Card.Header>
-                <Card.Body>
-                    <Row xs={1} md={2} className="g-4">
-                        {/* Project Lead */}
-                        <Col>
-                            <Card className="h-100 border-0 shadow-sm">
-                                <Card.Header className="bg-primary text-white">Project Lead</Card.Header>
+                        <Col md={4}>
+                            <Card className="shadow-sm mb-4">
+                                <Card.Header className="bg-white">
+                                    <h5 className="mb-0">Project Lead</h5>
+                                </Card.Header>
                                 <Card.Body>
                                     <div className="d-flex align-items-center">
                                         <div
-                                            className="bg-light rounded-circle d-flex justify-content-center align-items-center me-3"
-                                            style={{ width: '50px', height: '50px' }}
+                                            className="d-flex justify-content-center align-items-center me-3 rounded-circle bg-primary text-white"
+                                            style={{ width: '48px', height: '48px' }}
                                         >
-                                            <FaUserCircle size={30} className="text-secondary" />
+                                            {projectCreator.name ? projectCreator.name.charAt(0).toUpperCase() : "?"}
                                         </div>
                                         <div>
-                                            <h6 className="mb-0">{project.creator ? project.creator.name : "Unknown"}</h6>
+                                            <h6 className="mb-1">{projectCreator.name || "Unknown"}</h6>
                                             <div className="text-muted small">
-                                                {project.creator ? project.creator.dept : ""}
+                                                {projectCreator.dept || ""}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {project.creator && project.creator._id !== user._id && (
-                                        <div className="d-flex mt-3 justify-content-end">
+                                    {user && projectCreator && projectCreator._id && projectCreator._id !== user._id && (
+                                        <div className="d-flex mt-3 justify-content-between">
                                             <Button
                                                 variant="outline-primary"
                                                 size="sm"
-                                                className="me-2"
-                                                onClick={() => handleViewProfile(project.creator._id)}
+                                                className="w-100 me-2"
+                                                onClick={() => handleViewProfile(projectCreator._id)}
                                             >
-                                                <FaUserCircle className="me-1" /> Profile
+                                                <FaUserCircle className="me-1" /> View Profile
                                             </Button>
                                             <Button
                                                 variant="primary"
                                                 size="sm"
-                                                onClick={() => handleMessageClick(project.creator)}
+                                                className="w-100"
+                                                onClick={() => handleMessageClick(projectCreator)}
                                             >
                                                 <FaEnvelope className="me-1" /> Message
                                             </Button>
@@ -264,78 +298,199 @@ const ProjectDetail = () => {
                                     )}
                                 </Card.Body>
                             </Card>
-                        </Col>
 
-                        {/* Collaborators */}
-                        <Col>
-                            <Card className="h-100 border-0 shadow-sm">
-                                <Card.Header className="bg-secondary text-white">Collaborators</Card.Header>
+                            <Card className="shadow-sm mb-4">
+                                <Card.Header className="bg-white d-flex justify-content-between align-items-center">
+                                    <h5 className="mb-0">Project Stats</h5>
+                                </Card.Header>
                                 <Card.Body>
-                                    {project.collaborators && project.collaborators.length > 0 ? (
-                                        <ListGroup variant="flush">
-                                            {project.collaborators.map((collab, index) => (
-                                                <ListGroup.Item key={index} className="px-0 py-2 border-bottom">
-                                                    <div className="d-flex justify-content-between align-items-center">
-                                                        <div className="d-flex align-items-center">
-                                                            <div
-                                                                className="bg-light rounded-circle d-flex justify-content-center align-items-center me-3"
-                                                                style={{ width: '40px', height: '40px' }}
-                                                            >
-                                                                <FaUserCircle size={24} className="text-secondary" />
-                                                            </div>
-                                                            <div>
-                                                                <h6 className="mb-0">{collab.name}</h6>
-                                                                <div className="text-muted small">{collab.dept}</div>
-                                                            </div>
-                                                        </div>
-
-                                                        {collab.id !== user._id && (
-                                                            <div>
-                                                                <Button
-                                                                    variant="outline-primary"
-                                                                    size="sm"
-                                                                    className="me-1"
-                                                                    onClick={() => handleViewProfile(collab.id)}
-                                                                >
-                                                                    <FaUserCircle />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="primary"
-                                                                    size="sm"
-                                                                    onClick={() => handleMessageClick(collab)}
-                                                                >
-                                                                    <FaEnvelope />
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </ListGroup.Item>
-                                            ))}
-                                        </ListGroup>
-                                    ) : (
-                                        <div className="text-center py-3 text-muted">
-                                            No collaborators for this project yet.
-                                        </div>
-                                    )}
+                                    <Row>
+                                        <Col xs={6}>
+                                            <div className="stats-card text-center mb-3">
+                                                <div className="mb-2">
+                                                    <FaUsers size={24} className="text-primary" />
+                                                </div>
+                                                <div className="fs-4 fw-bold">
+                                                    {((project.collaborators || []).length + 1)}
+                                                </div>
+                                                <div className="text-muted small">Team Members</div>
+                                            </div>
+                                        </Col>
+                                        <Col xs={6}>
+                                            <div className="stats-card text-center mb-3">
+                                                <div className="mb-2">
+                                                    <FaTasks size={24} className="text-primary" />
+                                                </div>
+                                                <div className="fs-4 fw-bold">
+                                                    {(project.modules || []).length}
+                                                </div>
+                                                <div className="text-muted small">Modules</div>
+                                            </div>
+                                        </Col>
+                                    </Row>
                                 </Card.Body>
                             </Card>
                         </Col>
                     </Row>
-                </Card.Body>
-            </Card>
+                </Tab>
 
-            {/* Conditionally render buttons based on user role */}
-            {isCreator && (
-                <div className="mt-4 d-flex justify-content-center">
-                    <Button
-                        variant="primary"
-                        className="me-2"
-                        onClick={() => navigate(`/projects/${id}/edit`)}
-                    >
-                        Edit Project
-                    </Button>
-                </div>
-            )}
+                <Tab eventKey="modules" title="Modules">
+                    <Card className="shadow-sm mb-4">
+                        <Card.Header className="bg-white">
+                            <h5 className="mb-0">Project Modules</h5>
+                        </Card.Header>
+                        <Card.Body>
+                            {project.modules && project.modules.length > 0 ? (
+                                <div>
+                                    {project.modules.map((module, index) => (
+                                        <div
+                                            key={index}
+                                            className="card mb-3 shadow-sm"
+                                        >
+                                            <div className="card-body">
+                                                <div className="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5>{module.name || `Module ${index + 1}`}</h5>
+                                                        <div className="mb-2">
+                                                            <Badge
+                                                                bg={
+                                                                    module.status === 'completed' ? 'success' :
+                                                                        module.status === 'in-progress' ? 'primary' : 'secondary'
+                                                                }
+                                                            >
+                                                                {module.status || 'Not Started'}
+                                                            </Badge>
+                                                        </div>
+                                                        {module.description && <p className="text-muted mb-0">{module.description}</p>}
+                                                    </div>
+
+                                                    {module.githubLink && (
+                                                        <a
+                                                            href={module.githubLink}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="btn btn-sm btn-outline-dark"
+                                                        >
+                                                            <FaGithub className="me-1" /> Code
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Alert variant="info">No modules defined for this project.</Alert>
+                            )}
+                        </Card.Body>
+                    </Card>
+                </Tab>
+
+                <Tab eventKey="team" title="Team">
+                    <Card className="shadow-sm mb-4">
+                        <Card.Header className="bg-white">
+                            <h5 className="mb-0">Project Team</h5>
+                        </Card.Header>
+                        <Card.Body>
+                            <div className="d-flex align-items-center p-3 border-bottom">
+                                <div
+                                    className="d-flex justify-content-center align-items-center me-3 rounded-circle bg-primary text-white"
+                                    style={{ width: '48px', height: '48px' }}
+                                >
+                                    {projectCreator.name ? projectCreator.name.charAt(0).toUpperCase() : "?"}
+                                </div>
+                                <div className="flex-grow-1">
+                                    <h6 className="mb-1">{projectCreator.name || "Unknown"}</h6>
+                                    <div className="text-muted small">{projectCreator.dept || ""}</div>
+                                    <Badge bg="primary" className="mt-1">Project Lead</Badge>
+                                </div>
+
+                                {user && projectCreator && projectCreator._id && projectCreator._id !== user._id && (
+                                    <div className="d-flex">
+                                        <Button
+                                            variant="outline-primary"
+                                            size="sm"
+                                            className="me-2"
+                                            onClick={() => handleViewProfile(projectCreator._id)}
+                                        >
+                                            <FaUserAlt />
+                                        </Button>
+                                        <Button
+                                            variant="outline-info"
+                                            size="sm"
+                                            onClick={() => handleMessageClick(projectCreator)}
+                                        >
+                                            <FaEnvelope />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {project.collaborators && project.collaborators.length > 0 ? (
+                                <div>
+                                    {project.collaborators.map((collab, index) => (
+                                        <div key={collab.id || `collab-${index}`} className="d-flex align-items-center p-3 border-bottom">
+                                            <div
+                                                className="d-flex justify-content-center align-items-center me-3 rounded-circle bg-info text-white"
+                                                style={{ width: '48px', height: '48px' }}
+                                            >
+                                                {collab.name ? collab.name.charAt(0).toUpperCase() : "C"}
+                                            </div>
+                                            <div className="flex-grow-1">
+                                                <h6 className="mb-1">{collab.name || 'Unknown'}</h6>
+                                                <div className="text-muted small">{collab.dept || 'Unknown'}</div>
+                                                <Badge bg="info" className="mt-1">Collaborator</Badge>
+                                            </div>
+
+                                            {user && collab.id && collab.id !== user._id && (
+                                                <div className="d-flex">
+                                                    <Button
+                                                        variant="outline-primary"
+                                                        size="sm"
+                                                        className="me-2"
+                                                        onClick={() => handleViewProfile(collab.id)}
+                                                    >
+                                                        <FaUserAlt />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline-info"
+                                                        size="sm"
+                                                        onClick={() => handleMessageClick(collab)}
+                                                    >
+                                                        <FaEnvelope />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-3 text-muted">
+                                    No collaborators for this project yet.
+                                </div>
+                            )}
+
+                            {project.mentor_id && (
+                                <div className="mt-4">
+                                    <h6 className="mb-3">Project Mentor</h6>
+                                    <div className="d-flex align-items-center p-3 border rounded">
+                                        <div
+                                            className="d-flex justify-content-center align-items-center me-3 rounded-circle bg-warning text-white"
+                                            style={{ width: '48px', height: '48px' }}
+                                        >
+                                            M
+                                        </div>
+                                        <div className="flex-grow-1">
+                                            <h6 className="mb-1">Project Mentor</h6>
+                                            <Badge bg="warning" className="mt-1">Mentor</Badge>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </Card.Body>
+                    </Card>
+                </Tab>
+            </Tabs>
         </Container>
     );
 };

@@ -2,11 +2,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card, Row, Col, Form, Button, Table, Badge, Modal,
-    InputGroup, Dropdown, ButtonGroup, Alert, Tabs, Tab
+    InputGroup, ButtonGroup, Alert, Tabs, Tab
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaEnvelope, FaFilter, FaSearch, FaUserPlus, FaUsers, FaCheckCircle } from 'react-icons/fa';
+import { FaEnvelope, FaSearch, FaUserPlus, FaUsers, FaCheckCircle } from 'react-icons/fa';
 import * as alumniApi from '../../services/api/alumni';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -35,7 +35,7 @@ const WillingnessManager = () => {
     const [showContactModal, setShowContactModal] = useState(false);
     const [messageTemplate, setMessageTemplate] = useState('');
     const [showTemplateModal, setShowTemplateModal] = useState(false);
-    const [messageTemplates, setMessageTemplates] = useState([
+    const [messageTemplates] = useState([
         { id: 1, title: 'Guest Lecture Request', content: 'Dear [Name],\n\nWe would like to invite you to deliver a guest lecture on [Topic] for our students. Your expertise would be valuable for our students.\n\nPlease let me know if you would be available on [Date].\n\nRegards,\n[Your Name]' },
         { id: 2, title: 'Mentorship Request', content: 'Dear [Name],\n\nWe are reaching out to request your mentorship for our students working on projects related to [Topic]. Your expertise would greatly benefit their learning experience.\n\nPlease let us know if you would be interested.\n\nRegards,\n[Your Name]' },
         { id: 3, title: 'Workshop Invitation', content: 'Dear [Name],\n\nWe would like to invite you to conduct a workshop on [Topic] for our students. Your practical knowledge would be invaluable for our students.\n\nThe workshop would be scheduled on [Date].\n\nRegards,\n[Your Name]' }
@@ -155,11 +155,6 @@ const WillingnessManager = () => {
         setSelectedAlumni([]);
     };
 
-    // Handle using a template
-    const useTemplate = (templateContent) => {
-        setMessageTemplate(templateContent);
-        setShowTemplateModal(false);
-    };
 
     // Get filtered alumni based on active willingness and other filters
     const filteredAlumni = alumni.filter(alumnus => {
@@ -586,7 +581,10 @@ const WillingnessManager = () => {
                                             </Card.Text>
                                             <Button
                                                 variant="primary"
-                                                onClick={() => useTemplate(template.content)}
+                                                onClick={() => {
+                                                    setMessageTemplate(template.content);
+                                                    setShowTemplateModal(false);
+                                                }}
                                             >
                                                 Use This Template
                                             </Button>

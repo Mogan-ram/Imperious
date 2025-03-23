@@ -47,23 +47,76 @@ const AlumniMentorship = ({ data }) => {
         }
     }, [authToken]);
 
-    // Function to load all mentees data
+    // Update for loadAllMentees function in AlumniMentorship.js
+
+    // Replace or update the loadAllMentees function with this improved version
     const loadAllMentees = useCallback(async () => {
         try {
             setLoading(true);
             const allAlumni = await alumniApi.getAlumniWillingness("", authToken);
+
             const menteesPromises = allAlumni.map(async (alumnus) => {
                 try {
-                    const mentees = await alumniApi.getAlumniMentees(alumnus.email, authToken);
-                    return {
-                        alumnusId: alumnus._id,
-                        alumnusName: alumnus.name,
-                        department: alumnus.dept,
-                        batch: alumnus.batch,
-                        email: alumnus.email,
-                        willingness: alumnus.willingness,
-                        mentees: mentees || []
-                    };
+                    const response = await alumniApi.getAlumniMentees(alumnus.email, authToken);
+
+                    // Check if the response is in the new format
+                    if (response && (response.mentees || response.project_groups)) {
+                        // Process the new format
+                        return {
+                            alumnusId: alumnus._id,
+                            alumnusName: alumnus.name,
+                            department: alumnus.dept,
+                            batch: alumnus.batch,
+                            email: alumnus.email,
+                            willingness: alumnus.willingness,
+                            // Use mentees array if available, otherwise extract students from project_groups
+                            mentees: response.mentees ||
+                                (response.project_groups || []).flatMap(project =>
+                                    (project.students || []).map(student => ({
+                                        ...student,
+                                        project: {
+                                            _id: project._id,
+                                            title: project.title,
+                                            abstract: project.abstract,
+                                            progress: project.progress
+                                        }
+                                    }))
+                                )
+                        };
+                    } else if (Array.isArray(response)) {
+                        // Handle old format where response is an array of projects
+                        return {
+                            alumnusId: alumnus._id,
+                            alumnusName: alumnus.name,
+                            department: alumnus.dept,
+                            batch: alumnus.batch,
+                            email: alumnus.email,
+                            willingness: alumnus.willingness,
+                            mentees: response.flatMap(project =>
+                                (project.students || []).map(student => ({
+                                    ...student,
+                                    project: {
+                                        _id: project._id,
+                                        title: project.title,
+                                        abstract: project.abstract,
+                                        progress: project.progress
+                                    }
+                                }))
+                            )
+                        };
+                    } else {
+                        // Fallback for unknown format
+                        console.warn("Unknown response format for mentees:", response);
+                        return {
+                            alumnusId: alumnus._id,
+                            alumnusName: alumnus.name,
+                            department: alumnus.dept,
+                            batch: alumnus.batch,
+                            email: alumnus.email,
+                            willingness: alumnus.willingness,
+                            mentees: []
+                        };
+                    }
                 } catch (error) {
                     console.error(`Error fetching mentees for ${alumnus.email}:`, error);
                     return {
@@ -81,7 +134,7 @@ const AlumniMentorship = ({ data }) => {
             const menteesResults = await Promise.all(menteesPromises);
             setMenteesData(menteesResults);
 
-            // Extract all mentees into a flat list
+            // Extract all mentees into a flat list with mentor information
             const flattenedMentees = [];
             menteesResults.forEach(result => {
                 if (result.mentees && result.mentees.length > 0) {
@@ -348,7 +401,43 @@ const AlumniMentorship = ({ data }) => {
                 </button>
             </div>
 
-            {/* Filters */}
+            {/* Key Alumni Metrics */}
+            <Row className="mb-4">
+                <Col md={3}>
+                    <StatCard
+                        title="Total Alumni"
+                        value={totalAlumni}
+                        icon={FaGraduationCap}
+                        color="primary"
+                    />
+                </Col>
+                <Col md={3}>
+                    <StatCard
+                        title="Active Mentors"
+                        value={activeAlumniCount}
+                        icon={FaChalkboardTeacher}
+                        color="success"
+                    />
+                </Col>
+                <Col md={3}>
+                    <StatCard
+                        title="Total Mentees"
+                        value={totalMentees}
+                        icon={FaUsers}
+                        color="warning"
+                    />
+                </Col>
+                <Col md={3}>
+                    <StatCard
+                        title="Engagement Rate"
+                        value={`${alumniEngagementRate}%`}
+                        icon={FaChartLine}
+                        color="danger"
+                    />
+                </Col>
+            </Row>
+
+            {/* Filter section - moved here after stat cards */}
             <Card className="mb-4">
                 <Card.Body>
                     <Row>
@@ -408,42 +497,6 @@ const AlumniMentorship = ({ data }) => {
                 </Card.Body>
             </Card>
 
-            {/* Key Alumni Metrics */}
-            <Row className="mb-4">
-                <Col md={3}>
-                    <StatCard
-                        title="Total Alumni"
-                        value={totalAlumni}
-                        icon={FaGraduationCap}
-                        color="primary"
-                    />
-                </Col>
-                <Col md={3}>
-                    <StatCard
-                        title="Active Mentors"
-                        value={activeAlumniCount}
-                        icon={FaChalkboardTeacher}
-                        color="success"
-                    />
-                </Col>
-                <Col md={3}>
-                    <StatCard
-                        title="Total Mentees"
-                        value={totalMentees}
-                        icon={FaUsers}
-                        color="warning"
-                    />
-                </Col>
-                <Col md={3}>
-                    <StatCard
-                        title="Engagement Rate"
-                        value={`${alumniEngagementRate}%`}
-                        icon={FaChartLine}
-                        color="danger"
-                    />
-                </Col>
-            </Row>
-
             {/* Content based on active tab */}
             {activeTab === 'network' && (
                 <ConnectionVisualization
@@ -456,6 +509,7 @@ const AlumniMentorship = ({ data }) => {
                 <AlumniList
                     departmentFilter={departmentFilter}
                     batchFilter={batchFilter}
+                    onAlumnusSelect={(email) => console.log("Alumni selected:", email)}
                 />
             )}
 

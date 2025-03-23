@@ -1,8 +1,17 @@
 // src/components/news-events/EventList/EventList.js
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Container, Row, Col, Nav, Button } from 'react-bootstrap';
-import { FaMapMarkerAlt, FaClock, FaPlus, FaUser } from 'react-icons/fa';
+import { Link, useNavigate } from 'react-router-dom';
+import { Container, Row, Col, Nav, Button, Badge } from 'react-bootstrap';
+import {
+    FaMapMarkerAlt,
+    FaClock,
+    FaPlus,
+    FaUser,
+    FaCalendarAlt,
+    FaEdit,
+    FaTrash,
+    FaExternalLinkAlt
+} from 'react-icons/fa';
 import { newsEventsService } from '../../../services/api/news-events';
 import { useAuth } from '../../../contexts/AuthContext';
 import LoadingSpinner from '../../common/LoadingSpinner';
@@ -15,6 +24,7 @@ const EventList = () => {
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState(0);
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     // Group events by date
     const getGroupedEvents = () => {
@@ -50,25 +60,79 @@ const EventList = () => {
     };
 
     useEffect(() => {
-        const fetchEvents = async () => {
+        fetchEvents();
+    }, []);
+
+    const fetchEvents = async () => {
+        try {
+            setLoading(true);
+            const response = await newsEventsService.getAll(1, 'event');
+
+            if (response.data && response.data.items) {
+                setEvents(response.data.items);
+            }
+        } catch (err) {
+            console.error('Error fetching events:', err);
+            setError('Failed to load events');
+            toast.error('Failed to load events');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Check if user can edit or delete an event
+    const canEdit = (event) => {
+        if (!user) return false;
+
+        // Only the author can edit
+        return user._id === event.author_id;
+    };
+
+    const canDelete = (event) => {
+        if (!user) return false;
+
+        const userRole = user.role.toLowerCase();
+        const authorId = event.author_id;
+
+        // Staff can delete their own events and alumni events
+        if (userRole === 'staff') {
+            if (user._id === authorId) return true;
+
+            // If the event was created by an alumni, staff can delete it
+            const authorRole = event.author?.role?.toLowerCase();
+            return authorRole === 'alumni';
+        }
+
+        // Alumni can only delete their own events
+        if (userRole === 'alumni') {
+            return user._id === authorId;
+        }
+
+        return false;
+    };
+
+    const handleEdit = (eventId) => {
+        navigate(`/news-events/${eventId}/edit`);
+    };
+
+    const handleDelete = async (eventId) => {
+        if (window.confirm('Are you sure you want to delete this event?')) {
             try {
                 setLoading(true);
-                const response = await newsEventsService.getAll(1, 'event');
+                await newsEventsService.delete(eventId);
 
-                if (response.data && response.data.items) {
-                    setEvents(response.data.items);
-                }
-            } catch (err) {
-                console.error('Error fetching events:', err);
-                setError('Failed to load events');
-                toast.error('Failed to load events');
+                // Remove the deleted event from state
+                setEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
+
+                toast.success('Event deleted successfully');
+            } catch (error) {
+                console.error('Error deleting event:', error);
+                toast.error('Failed to delete event');
             } finally {
                 setLoading(false);
             }
-        };
-
-        fetchEvents();
-    }, []);
+        }
+    };
 
     if (loading) {
         return <LoadingSpinner />;
@@ -147,11 +211,27 @@ const EventList = () => {
 
                         <div className="event-timeline">
                             {groupedEvents[activeTab].events.map((event, index) => {
-                                // Extract hour and minutes for display
-                                const eventTime = new Date(event.event_date);
-                                const hours = eventTime.getHours();
-                                const minutes = eventTime.getMinutes();
-                                const formattedTime = `${hours > 12 ? hours - 12 : hours}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+                                // Format the time
+                                let formattedTime = 'Time not specified';
+
+                                // Try to get time from event_time field first
+                                if (event.event_time) {
+                                    formattedTime = event.event_time;
+                                }
+                                // If not available, try to extract from event_date
+                                else if (event.event_date) {
+                                    const eventDateTime = new Date(event.event_date);
+                                    const hours = eventDateTime.getHours();
+                                    const minutes = eventDateTime.getMinutes();
+                                    if (hours !== 0 || minutes !== 0) { // Only use if time is not 00:00
+                                        formattedTime = `${hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours)}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+                                    }
+                                }
+
+                                // Get author role for badge
+                                const authorRole = event.author?.role?.toLowerCase() || '';
+                                const badgeVariant = authorRole === 'staff' ? 'primary' :
+                                    authorRole === 'alumni' ? 'success' : 'secondary';
 
                                 return (
                                     <div className="event-item" key={event._id || index}>
@@ -161,12 +241,16 @@ const EventList = () => {
 
                                         <div className="event-content">
                                             <div className="event-card">
+
                                                 {event.image_url && (
                                                     <div className="event-image">
                                                         <img
-                                                            src={`http://localhost:5000${event.image_url}`}
+                                                            src={event.image_url.startsWith('http')
+                                                                ? event.image_url
+                                                                : `http://localhost:5000${event.image_url}`}
                                                             alt={event.title}
                                                             onError={(e) => {
+                                                                console.log('Image load error:', e);
                                                                 e.target.src = 'https://via.placeholder.com/100x100?text=Event';
                                                             }}
                                                         />
@@ -174,12 +258,42 @@ const EventList = () => {
                                                 )}
 
                                                 <div className="event-details">
-                                                    <h4 className="event-title">{event.title}</h4>
+                                                    <div className="d-flex justify-content-between align-items-start">
+                                                        <h4 className="event-title">{event.title}</h4>
+                                                        <div className="event-actions">
+                                                            {canEdit(event) && (
+                                                                <Button
+                                                                    variant="outline-primary"
+                                                                    size="sm"
+                                                                    className="me-2"
+                                                                    onClick={() => handleEdit(event._id)}
+                                                                >
+                                                                    <FaEdit />
+                                                                </Button>
+                                                            )}
+                                                            {canDelete(event) && (
+                                                                <Button
+                                                                    variant="outline-danger"
+                                                                    size="sm"
+                                                                    onClick={() => handleDelete(event._id)}
+                                                                >
+                                                                    <FaTrash />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
 
                                                     <div className="event-meta">
                                                         <div className="meta-item">
                                                             <FaUser className="meta-icon" />
-                                                            <span>{event.author ? event.author.name : 'Unknown'}</span>
+                                                            <span>
+                                                                {event.author ? event.author.name : 'Unknown'}
+                                                                {event.author?.role && (
+                                                                    <Badge pill bg={badgeVariant} className="ms-2">
+                                                                        {event.author.role}
+                                                                    </Badge>
+                                                                )}
+                                                            </span>
                                                         </div>
 
                                                         <div className="meta-item">
@@ -191,11 +305,38 @@ const EventList = () => {
                                                             <FaClock className="meta-icon" />
                                                             <span>{formattedTime}</span>
                                                         </div>
+
+                                                        {event.register_link && (
+                                                            <div className="meta-item">
+                                                                <FaExternalLinkAlt className="meta-icon" />
+                                                                <a
+                                                                    href={event.register_link}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="registration-link"
+                                                                >
+                                                                    Register
+                                                                </a>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     <p className="event-description">
                                                         {event.description}
                                                     </p>
+
+                                                    {event.register_link && (
+                                                        <div className="text-end mt-2">
+                                                            <a
+                                                                href={event.register_link}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="btn btn-sm btn-primary"
+                                                            >
+                                                                <FaExternalLinkAlt className="me-1" /> Register Now
+                                                            </a>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
