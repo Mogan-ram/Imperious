@@ -1,6 +1,6 @@
 // src/components/analytics/ConnectionVisualization.js
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, Form, Button, Row, Col, Badge } from 'react-bootstrap';
+import { Card, Form, Row, Col } from 'react-bootstrap';
 import * as d3 from 'd3';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -9,12 +9,106 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const ConnectionVisualization = ({ alumniData, menteesData }) => {
     const svgRef = useRef(null);
-    const [selectedDepartment, setSelectedDepartment] = useState('all');
-    const [selectedWillingness, setSelectedWillingness] = useState('all');
     const [highlightConnections, setHighlightConnections] = useState(false);
     const [showLabels, setShowLabels] = useState(true);
     const navigate = useNavigate();
     const { user } = useAuth();
+
+    // Helper function to process data for visualization
+    const processData = (data) => {
+        // When no data is available
+        if (!data) return { nodes: [], links: [] };
+
+        const nodes = [];
+        const links = [];
+        const nodesMap = new Map();
+
+        // Add mentor node if available
+        if (data.mentor && data.mentor._id) {
+            const mentorNode = {
+                id: data.mentor._id,
+                name: data.mentor.name || "Unknown",
+                department: data.mentor.dept || "",
+                email: data.mentor.email || "",
+                type: 'alumni',
+                menteeCount: data.mentees?.length || 0
+            };
+
+            nodes.push(mentorNode);
+            nodesMap.set(data.mentor._id, mentorNode);
+        }
+
+        // Add mentee nodes and links
+        if (data.mentees && Array.isArray(data.mentees)) {
+            data.mentees.forEach(mentee => {
+                if (!mentee._id) {
+                    console.log("Mentee missing ID:", mentee);
+                    return;
+                }
+
+                // Only add each mentee once
+                if (!nodesMap.has(mentee._id)) {
+                    const menteeNode = {
+                        id: mentee._id,
+                        name: mentee.name || "Unknown Student",
+                        department: mentee.dept,
+                        batch: mentee.batch,
+                        email: mentee.email,
+                        type: 'mentee',
+                        project: mentee.project?.title || ""
+                    };
+
+                    nodes.push(menteeNode);
+                    nodesMap.set(mentee._id, menteeNode);
+                }
+
+                // Create link from mentor to mentee
+                if (data.mentor && data.mentor._id) {
+                    links.push({
+                        source: data.mentor._id,
+                        target: mentee._id,
+                        value: 1
+                    });
+                }
+            });
+        }
+
+        // Handle project_groups format
+        if (data.project_groups && Array.isArray(data.project_groups)) {
+            data.project_groups.forEach(project => {
+                if (project.students && Array.isArray(project.students)) {
+                    project.students.forEach(student => {
+                        // Only add student once
+                        if (!student.id || nodesMap.has(student.id)) return;
+
+                        const studentNode = {
+                            id: student.id,
+                            name: student.name || "Unknown Student",
+                            department: student.dept,
+                            batch: student.batch,
+                            email: student.email,
+                            type: 'mentee',
+                            project: project.title || ""
+                        };
+
+                        nodes.push(studentNode);
+                        nodesMap.set(student.id, studentNode);
+
+                        // Create link from mentor to student
+                        if (data.mentor && data.mentor._id) {
+                            links.push({
+                                source: data.mentor._id,
+                                target: student.id,
+                                value: 1
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        return { nodes, links };
+    };
 
     // Start conversation with a user
     const startConversation = async (targetEmail) => {
@@ -49,77 +143,97 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
 
     // Prepare and create the visualization when data or filters change
     useEffect(() => {
-        if (!alumniData || !menteesData || !svgRef.current) return;
+        if (!svgRef.current) return;
 
         // Clear previous visualization
         d3.select(svgRef.current).selectAll("*").remove();
 
-        // Filter data based on selected department and willingness
-        let filteredAlumni = [...alumniData];
-        let filteredMentees = [...menteesData];
+        // Handle different data formats
+        let processedData = { nodes: [], links: [] };
 
-        if (selectedDepartment !== 'all') {
-            filteredAlumni = filteredAlumni.filter(a => a.department === selectedDepartment);
-            filteredMentees = filteredMentees.filter(m => m.department === selectedDepartment);
+        // If we have a direct menteesData object with mentor and mentees properties
+        if (menteesData && (menteesData.mentees || menteesData.project_groups)) {
+            processedData = processData(menteesData);
         }
+        // If we have an array of alumni data (older format)
+        else if (Array.isArray(alumniData) && alumniData.length > 0) {
+            // Build up nodes and links from each alumnus
+            const nodes = [];
+            const links = [];
+            const nodesMap = new Map();
 
-        if (selectedWillingness !== 'all') {
-            filteredAlumni = filteredAlumni.filter(a =>
-                a.willingness && a.willingness.includes(selectedWillingness)
-            );
-        }
+            alumniData.forEach(alumnus => {
+                if (!alumnus._id && !alumnus.alumnusId) return;
 
-        // Create nodes for network graph
-        const nodes = [];
-        const links = [];
+                // Add alumnus node
+                const alumnusId = alumnus._id || alumnus.alumnusId;
+                const alumnusNode = {
+                    id: alumnusId,
+                    name: alumnus.name || alumnus.alumnusName || "Unknown",
+                    department: alumnus.dept || alumnus.department || "",
+                    email: alumnus.email || "",
+                    type: 'alumni',
+                    menteeCount: alumnus.mentees?.length || 0
+                };
 
-        // Add alumni nodes
-        filteredAlumni.forEach(alumnus => {
-            nodes.push({
-                id: alumnus.alumnusId,
-                name: alumnus.alumnusName,
-                department: alumnus.department,
-                batch: alumnus.batch,
-                email: alumnus.email || '', // Add email for messaging
-                type: 'alumni',
-                menteeCount: alumnus.mentees ? alumnus.mentees.length : 0
-            });
-        });
+                if (!nodesMap.has(alumnusId)) {
+                    nodes.push(alumnusNode);
+                    nodesMap.set(alumnusId, alumnusNode);
+                }
 
-        // Add mentee nodes and connections
-        filteredMentees.forEach(menteeData => {
-            const alumnus = nodes.find(n => n.id === menteeData.alumnusId);
+                // Add mentees and links
+                const mentees = alumnus.mentees || [];
+                mentees.forEach(mentee => {
+                    if (!mentee._id && !mentee.id) return;
 
-            if (alumnus && menteeData.mentees && menteeData.mentees.length > 0) {
-                menteeData.mentees.forEach(mentee => {
-                    // Check if mentee already exists
-                    let menteeNode = nodes.find(n => n.email === mentee.email);
+                    const menteeId = mentee._id || mentee.id;
 
-                    if (!menteeNode) {
-                        menteeNode = {
-                            id: mentee._id || `mentee-${nodes.length}`,
-                            name: mentee.name,
+                    // Add mentee node if not already added
+                    if (!nodesMap.has(menteeId)) {
+                        const menteeNode = {
+                            id: menteeId,
+                            name: mentee.name || "Unknown Student",
                             department: mentee.dept,
                             batch: mentee.batch,
                             email: mentee.email,
                             type: 'mentee',
-                            project: mentee.project ? mentee.project.title : null
+                            project: mentee.project?.title || ""
                         };
+
                         nodes.push(menteeNode);
+                        nodesMap.set(menteeId, menteeNode);
                     }
 
-                    // Create a link
+                    // Create link
                     links.push({
-                        source: alumnus.id,
-                        target: menteeNode.id,
+                        source: alumnusId,
+                        target: menteeId,
                         value: 1
                     });
                 });
-            }
-        });
+            });
+
+            processedData = { nodes, links };
+        }
+
+        const { nodes, links } = processedData;
+
+        console.log(`Visualization data prepared: ${nodes.length} nodes, ${links.length} links`);
+
+        if (nodes.length === 0) {
+            d3.select(svgRef.current)
+                .append("text")
+                .attr("x", svgRef.current.clientWidth / 2)
+                .attr("y", 300)
+                .attr("text-anchor", "middle")
+                .text("No mentor-mentee relationships to display")
+                .style("font-size", "20px")
+                .style("fill", "#666");
+            return;
+        }
 
         // Set up D3 visualization
-        const width = svgRef.current.clientWidth;
+        const width = svgRef.current.clientWidth || 800;
         const height = 600; // Fixed height
 
         // Create SVG
@@ -141,11 +255,11 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
 
         // Create simulation
         const simulation = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(links).id(d => d.id).distance(100))
-            .force("charge", d3.forceManyBody().strength(-400))
+            .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-300))
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force("collision", d3.forceCollide().radius(d =>
-                d.type === 'alumni' ? 40 : 20
+                d.type === 'alumni' ? 35 : 20
             ));
 
         // Draw links
@@ -154,8 +268,8 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
             .data(links)
             .join("line")
             .attr("stroke", highlightConnections ? "#4a90e2" : "#999")
-            .attr("stroke-opacity", highlightConnections ? 0.8 : 0.3)
-            .attr("stroke-width", d => highlightConnections ? 2 : 1);
+            .attr("stroke-opacity", highlightConnections ? 0.8 : 0.6)
+            .attr("stroke-width", d => highlightConnections ? 3 : 2);
 
         // Define color scale for departments
         const departmentColors = d3.scaleOrdinal()
@@ -284,19 +398,21 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
 
         // Add circles to nodes
         node.append("circle")
-            .attr("r", d => d.type === 'alumni' ? 20 : 10)
+            .attr("r", d => d.type === 'alumni' ? 25 : 15)
             .attr("fill", d => departmentColors(d.department))
             .attr("stroke", "#fff")
-            .attr("stroke-width", 1.5);
+            .attr("stroke-width", 2);
 
         // Add text labels
         if (showLabels) {
             node.append("text")
                 .attr("text-anchor", "middle")
-                .attr("dy", d => d.type === 'alumni' ? -25 : -15)
+                .attr("dy", d => d.type === 'alumni' ? -30 : -20)
                 .text(d => d.name)
                 .attr("font-size", d => d.type === 'alumni' ? "12px" : "10px")
-                .attr("fill", "#333");
+                .attr("fill", "#333")
+                .style("font-weight", "bold")
+                .style("text-shadow", "0 0 3px white, 0 0 3px white, 0 0 3px white, 0 0 3px white");
         }
 
         // Add type indicator
@@ -304,8 +420,9 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
             .attr("text-anchor", "middle")
             .attr("dy", "0.35em")
             .text(d => d.type === 'alumni' ? 'A' : 'S')
-            .attr("font-size", "10px")
-            .attr("fill", "white");
+            .attr("font-size", d => d.type === 'alumni' ? "14px" : "10px")
+            .attr("fill", "white")
+            .style("font-weight", "bold");
 
         // Update positions on simulation tick
         simulation.on("tick", () => {
@@ -341,54 +458,16 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
         return () => {
             tooltip.remove();
         };
-
-    }, [alumniData, menteesData, selectedDepartment, selectedWillingness, highlightConnections, showLabels, navigate, user.email]);
-
-    // Get unique departments for filter
-    const departments = Array.from(new Set(alumniData.map(a => a.department).filter(Boolean)));
-
-    // Get unique willingness options
-    const willingnessOptions = Array.from(new Set(
-        alumniData.flatMap(a => a.willingness || [])
-    ));
+    }, [alumniData, menteesData, highlightConnections, showLabels, navigate, user.email]);
 
     return (
         <Card className="mb-4">
             <Card.Body>
                 <Card.Title>Alumni-Student Connection Network</Card.Title>
+                <p className="text-muted">Visualization of mentoring relationships between alumni and students</p>
 
                 <Row className="mb-3">
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Filter by Department</Form.Label>
-                            <Form.Select
-                                value={selectedDepartment}
-                                onChange={(e) => setSelectedDepartment(e.target.value)}
-                            >
-                                <option value="all">All Departments</option>
-                                {departments.map(dept => (
-                                    <option key={dept} value={dept}>{dept}</option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
-                    </Col>
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Filter by Willingness</Form.Label>
-                            <Form.Select
-                                value={selectedWillingness}
-                                onChange={(e) => setSelectedWillingness(e.target.value)}
-                            >
-                                <option value="all">All Types</option>
-                                {willingnessOptions.map(willing => (
-                                    <option key={willing} value={willing}>
-                                        {willing.charAt(0).toUpperCase() + willing.slice(1)}
-                                    </option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
-                    </Col>
-                    <Col md={3}>
+                    <Col md={6} className="d-flex justify-content-center">
                         <Form.Group className="mt-4">
                             <Form.Check
                                 type="switch"
@@ -399,7 +478,7 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
                             />
                         </Form.Group>
                     </Col>
-                    <Col md={3}>
+                    <Col md={6} className="d-flex justify-content-center">
                         <Form.Group className="mt-4">
                             <Form.Check
                                 type="switch"
@@ -418,14 +497,16 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
 
                 <div className="mt-3">
                     <div className="d-flex align-items-center mb-2">
-                        <Badge bg="primary" className="me-2">Legend:</Badge>
-                        <div className="d-flex align-items-center me-3">
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#4a90e2', display: 'inline-block', marginRight: '5px' }}></div>
-                            <span>Alumni (A)</span>
+                        <div className="me-4">
+                            <strong>Legend:</strong>
+                        </div>
+                        <div className="d-flex align-items-center me-4">
+                            <div style={{ width: '25px', height: '25px', borderRadius: '50%', backgroundColor: '#4a90e2', display: 'inline-block', marginRight: '5px', textAlign: 'center', color: 'white', fontWeight: 'bold', lineHeight: '25px' }}>A</div>
+                            <span>Alumni</span>
                         </div>
                         <div className="d-flex align-items-center">
-                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#5cb85c', display: 'inline-block', marginRight: '5px' }}></div>
-                            <span>Student (S)</span>
+                            <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: '#5cb85c', display: 'inline-block', marginRight: '5px', textAlign: 'center', color: 'white', fontWeight: 'bold', lineHeight: '15px', fontSize: '10px' }}>S</div>
+                            <span>Student</span>
                         </div>
                     </div>
                     <p className="text-muted small">

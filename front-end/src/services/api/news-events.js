@@ -1,8 +1,16 @@
+// src/services/api/news-events.js
 import axios from '../axios';
 
 const BASE_URL = '/news-events';
 
 export const newsEventsService = {
+    /**
+     * Get all news and events with optional filtering
+     * 
+     * @param {number} page - Page number for pagination
+     * @param {string} type - Filter by type (news, event, or all)
+     * @returns {Promise} API response
+     */
     getAll: async (page = 1, type = "all") => {
         try {
             const response = await axios.get(BASE_URL, {
@@ -19,15 +27,62 @@ export const newsEventsService = {
             throw error;
         }
     },
-    // Modified version
-    // In news-events.js
-    create: (data) => {
-        // IMPORTANT: Let the browser set Content-Type automatically for FormData
-        return axios.post(BASE_URL, data);
+
+    /**
+     * Get a specific news/event by ID
+     * 
+     * @param {string} id - News/event ID
+     * @returns {Promise} API response
+     */
+    getById: async (id) => {
+        try {
+            const response = await axios.get(`${BASE_URL}/${id}`);
+            return response;
+        } catch (error) {
+            console.error(`Error fetching news/event with ID ${id}:`, error);
+            throw error;
+        }
     },
+
+    /**
+     * Create a news/event with FormData
+     * 
+     * @param {FormData} data - Form data containing news/event details
+     * @returns {Promise} API response
+     */
+    create: (data) => {
+        // Important: Do not manually set Content-Type header for FormData
+        // Let the browser automatically set the correct boundary value
+        return axios.post(BASE_URL, data, {
+            headers: {
+                // Do NOT set Content-Type here - let the browser handle it
+            }
+        });
+    },
+
+    /**
+     * Update a news/event
+     * 
+     * @param {string} id - News/event ID
+     * @param {object} data - Updated news/event data
+     * @returns {Promise} API response
+     */
     update: (id, data) => axios.put(`${BASE_URL}/${id}`, data),
+
+    /**
+     * Delete a news/event
+     * 
+     * @param {string} id - News/event ID
+     * @returns {Promise} API response
+     */
     delete: (id) => axios.delete(`${BASE_URL}/${id}`),
 
+    /**
+     * Create a news event specifically (convenience method)
+     * 
+     * @param {object} data - News/event data
+     * @returns {Promise} API response
+     */
     createNewsEvent: async (data) => {
         try {
             const response = await axios.post(BASE_URL, data);
@@ -37,3 +92,5 @@ export const newsEventsService = {
         }
     }
 };
+
+export default newsEventsService;

@@ -98,6 +98,13 @@ function App() {
                 </Suspense>
               </ProtectedRoute>
             } />
+            <Route path="/news-events/:id/edit" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <NewsEventForm />
+                </Suspense>
+              </ProtectedRoute>
+            } />
 
             {/* Project Routes */}
             <Route path="/projects/my-projects" element={

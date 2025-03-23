@@ -1,6 +1,6 @@
 // src/components/analytics/AlumniCharts.js
 import React, { useMemo } from 'react';
-import { Card, Row, Col } from 'react-bootstrap';
+import { Card, Row, Col, Alert } from 'react-bootstrap';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -28,11 +28,14 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
     const willingnessChartData = useMemo(() => {
         // Calculate willingness counts
         const willingnessCounts = {};
+
         alumniData.forEach(alumnus => {
             if (alumnus.willingness && Array.isArray(alumnus.willingness)) {
                 alumnus.willingness.forEach(w => {
-                    // Convert to title case and remove camelCase
-                    const formatted = w.replace(/([A-Z])/g, ' $1')
+                    // Convert to title case and remove camelCase/snake_case
+                    const formatted = w
+                        .replace(/_/g, ' ')
+                        .replace(/([A-Z])/g, ' $1')
                         .replace(/^./, str => str.toUpperCase());
                     willingnessCounts[formatted] = (willingnessCounts[formatted] || 0) + 1;
                 });
@@ -49,14 +52,18 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
                     'rgba(75, 192, 192, 0.7)',
                     'rgba(255, 206, 86, 0.7)',
                     'rgba(255, 99, 132, 0.7)',
-                    'rgba(153, 102, 255, 0.7)'
+                    'rgba(153, 102, 255, 0.7)',
+                    'rgba(255, 159, 64, 0.7)',
+                    'rgba(54, 102, 235, 0.7)'
                 ],
                 borderColor: [
                     'rgba(54, 162, 235, 1)',
                     'rgba(75, 192, 192, 1)',
                     'rgba(255, 206, 86, 1)',
                     'rgba(255, 99, 132, 1)',
-                    'rgba(153, 102, 255, 1)'
+                    'rgba(153, 102, 255, 1)',
+                    'rgba(255, 159, 64, 1)',
+                    'rgba(54, 102, 235, 1)'
                 ],
                 borderWidth: 1,
             }]
@@ -65,18 +72,42 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
 
     // Mentees chart data
     const menteesChartData = useMemo(() => {
-        // Filter out alumni with no mentees
+        console.log("Preparing mentees chart data with:", menteesData);
+
+        // Filter out alumni with no mentees and ensure mentees field exists
         const activeAlumni = menteesData
-            .filter(alumnus => alumnus.mentees && alumnus.mentees.length > 0)
+            .filter(alumnus => alumnus.mentees && Array.isArray(alumnus.mentees) && alumnus.mentees.length > 0)
             .sort((a, b) => b.mentees.length - a.mentees.length)
             .slice(0, 10); // Top 10 mentors
 
+        console.log("Active alumni for chart:", activeAlumni.length);
+
+        if (activeAlumni.length === 0) {
+            // Return placeholder data if no active alumni
+            return {
+                labels: ['No Data Available'],
+                datasets: [
+                    {
+                        label: 'Number of Mentees',
+                        data: [0],
+                        backgroundColor: 'rgba(200, 200, 200, 0.7)',
+                        borderColor: 'rgba(200, 200, 200, 1)',
+                        borderWidth: 1,
+                    },
+                ],
+            };
+        }
+
+        // Use proper name field
+        const labels = activeAlumni.map(alumnus => alumnus.alumnusName || alumnus.name || "Unknown");
+        const data = activeAlumni.map(alumnus => alumnus.mentees.length);
+
         return {
-            labels: activeAlumni.map(alumnus => alumnus.alumnusName),
+            labels: labels,
             datasets: [
                 {
                     label: 'Number of Mentees',
-                    data: activeAlumni.map(alumnus => alumnus.mentees.length),
+                    data: data,
                     backgroundColor: 'rgba(255, 99, 132, 0.7)',
                     borderColor: 'rgba(255, 99, 132, 1)',
                     borderWidth: 1,
@@ -122,23 +153,49 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
 
     // Posts chart data
     const postsChartData = useMemo(() => {
+        console.log("Preparing posts chart data with:", postsData);
+
         // Filter and sort by post count
         const activePosters = postsData
-            .filter(alumnus => alumnus.posts && alumnus.posts.length > 0)
+            .filter(alumnus => alumnus.posts && Array.isArray(alumnus.posts) && alumnus.posts.length > 0)
             .sort((a, b) => b.posts.length - a.posts.length)
             .slice(0, 8); // Top 8 contributors
 
+        console.log("Active posters for chart:", activePosters.length);
+
+        if (activePosters.length === 0) {
+            // Return placeholder data if no active posters
+            return {
+                labels: ['No Data Available'],
+                datasets: [{
+                    label: 'Number of Posts',
+                    data: [0],
+                    backgroundColor: 'rgba(200, 200, 200, 0.7)',
+                    borderColor: 'rgba(200, 200, 200, 1)',
+                    borderWidth: 1,
+                }]
+            };
+        }
+
+        // Use proper name field
+        const labels = activePosters.map(alumnus => alumnus.alumnusName || alumnus.name || "Unknown");
+        const data = activePosters.map(alumnus => alumnus.posts.length);
+
+        const backgroundColors = activePosters.map((_, i) =>
+            `hsla(${i * 360 / activePosters.length}, 70%, 60%, 0.7)`
+        );
+
+        const borderColors = activePosters.map((_, i) =>
+            `hsl(${i * 360 / activePosters.length}, 70%, 50%)`
+        );
+
         return {
-            labels: activePosters.map(alumnus => alumnus.alumnusName),
+            labels: labels,
             datasets: [{
                 label: 'Number of Posts',
-                data: activePosters.map(alumnus => alumnus.posts.length),
-                backgroundColor: activePosters.map((_, i) =>
-                    `hsla(${i * 360 / activePosters.length}, 70%, 60%, 0.7)`
-                ),
-                borderColor: activePosters.map((_, i) =>
-                    `hsl(${i * 360 / activePosters.length}, 70%, 50%)`
-                ),
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
                 borderWidth: 1,
             }]
         };
@@ -205,6 +262,9 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
         }
     };
 
+    const hasMenteesData = menteesData && menteesData.some(m => m.mentees && m.mentees.length > 0);
+    const hasPostsData = postsData && postsData.some(p => p.posts && p.posts.length > 0);
+
     return (
         <div>
             <Row>
@@ -243,13 +303,20 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
                     <Card className="mb-4">
                         <Card.Body>
                             <Card.Title>Top Mentors by Number of Mentees</Card.Title>
-                            <div style={{ height: '300px' }}>
-                                <Bar
-                                    data={menteesChartData}
-                                    options={barOptions}
-                                    id="menteesChart"
-                                />
-                            </div>
+                            {!hasMenteesData ? (
+                                <Alert variant="info" className="mt-3">
+                                    No mentorship data available. Once alumni begin mentoring students,
+                                    this chart will show the most active mentors.
+                                </Alert>
+                            ) : (
+                                <div style={{ height: '300px' }}>
+                                    <Bar
+                                        data={menteesChartData}
+                                        options={barOptions}
+                                        id="menteesChart"
+                                    />
+                                </div>
+                            )}
                         </Card.Body>
                     </Card>
                 </Col>
@@ -257,13 +324,20 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
                     <Card className="mb-4">
                         <Card.Body>
                             <Card.Title>Top Content Contributors</Card.Title>
-                            <div style={{ height: '300px' }}>
-                                <Bar
-                                    data={postsChartData}
-                                    options={barOptions}
-                                    id="postsChart"
-                                />
-                            </div>
+                            {!hasPostsData ? (
+                                <Alert variant="info" className="mt-3">
+                                    No posts data available. Once alumni begin posting content,
+                                    this chart will show the most active contributors.
+                                </Alert>
+                            ) : (
+                                <div style={{ height: '300px' }}>
+                                    <Bar
+                                        data={postsChartData}
+                                        options={barOptions}
+                                        id="postsChart"
+                                    />
+                                </div>
+                            )}
                         </Card.Body>
                     </Card>
                 </Col>

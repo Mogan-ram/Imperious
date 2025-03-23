@@ -15,13 +15,17 @@ import messagingService from '../../services/api/messaging';
 // Willingness options with colors and icons (could be moved to a constants file)
 const WILLINGNESS_OPTIONS = [
     { value: 'mentoring', label: 'Mentoring', color: 'primary', icon: '👨‍🏫' },
-    { value: 'guestLectures', label: 'Guest Lectures', color: 'info', icon: '🎤' },
+    { value: 'guest_lecture', label: 'Guest Lectures', color: 'info', icon: '🎤' },
     { value: 'workshops', label: 'Workshops', color: 'success', icon: '🛠️' },
     { value: 'internships', label: 'Internships', color: 'warning', icon: '💼' },
     { value: 'placements', label: 'Placements', color: 'danger', icon: '🎓' },
     { value: 'funding', label: 'Funding', color: 'secondary', icon: '💰' },
     { value: 'research', label: 'Research', color: 'dark', icon: '🔬' },
-    { value: 'other', label: 'Other', color: 'light', icon: '➕' }
+    { value: 'volunteering', label: 'Volunteering', color: 'primary', icon: '🤝' },
+    { value: 'networking', label: 'Networking', color: 'info', icon: '🌐' },
+    { value: 'placement_training', label: 'Placement Training', color: 'success', icon: '📊' },
+    { value: 'fundraising', label: 'Fundraising', color: 'warning', icon: '💸' },
+    { value: 'mentorship', label: 'Mentorship', color: 'primary', icon: '🧠' }
 ];
 
 const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
@@ -41,6 +45,42 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
 
     const { authToken, user } = useAuth();
     const navigate = useNavigate();
+
+    // Helper function to format willingness values
+    const formatWillingness = (value) => {
+        // Convert camelCase or snake_case to Title Case with spaces
+        return value
+            .replace(/_/g, ' ')
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, (str) => str.toUpperCase())
+            .trim();
+    };
+
+    // Helper function to find willingness option
+    const getWillingnessOption = (value) => {
+        // First try exact match
+        let option = WILLINGNESS_OPTIONS.find(opt => opt.value === value);
+
+        // If no match, try case-insensitive match
+        if (!option) {
+            option = WILLINGNESS_OPTIONS.find(opt =>
+                opt.value.toLowerCase() === value.toLowerCase());
+        }
+
+        // If still no match, try comparison after formatting
+        if (!option) {
+            const formattedValue = formatWillingness(value).toLowerCase();
+            option = WILLINGNESS_OPTIONS.find(opt =>
+                formatWillingness(opt.value).toLowerCase() === formattedValue);
+        }
+
+        return option || {
+            value: value,
+            label: formatWillingness(value),
+            color: 'secondary',
+            icon: '✓'
+        };
+    };
 
     // Fetch alumni data
     useEffect(() => {
@@ -78,9 +118,18 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
         // Willingness filter
         if (selectedWillingness.length > 0) {
             result = result.filter(alumnus =>
-                selectedWillingness.every(selected =>
-                    alumnus.willingness && alumnus.willingness.includes(selected)
-                )
+                selectedWillingness.some(selected => {
+                    // Check if alumnus has willingness array
+                    if (!alumnus.willingness || !Array.isArray(alumnus.willingness)) {
+                        return false;
+                    }
+
+                    // Match with case-insensitive comparison to handle formatting differences
+                    return alumnus.willingness.some(willing =>
+                        willing.toLowerCase() === selected.toLowerCase() ||
+                        formatWillingness(willing).toLowerCase() === formatWillingness(selected).toLowerCase()
+                    );
+                })
             );
         }
 
@@ -294,14 +343,14 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
                     {/* Active Filters Display */}
                     {(selectedWillingness.length > 0 || searchTerm || engagementFilter !== 'all') && (
                         <div className="mb-3">
-                            <div className="d-flex align-items-center">
+                            <div className="d-flex align-items-center flex-wrap">
                                 <small className="text-muted me-2">Active Filters:</small>
                                 {selectedWillingness.map(filter => {
-                                    const option = WILLINGNESS_OPTIONS.find(opt => opt.value === filter);
+                                    const option = getWillingnessOption(filter);
                                     return (
                                         <Badge
                                             bg={option?.color || 'secondary'}
-                                            className="me-1"
+                                            className="me-1 mb-1"
                                             key={filter}
                                             style={{ cursor: 'pointer' }}
                                             onClick={() => toggleWillingness(filter)}
@@ -313,7 +362,7 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
                                 {searchTerm && (
                                     <Badge
                                         bg="info"
-                                        className="me-1"
+                                        className="me-1 mb-1"
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => setSearchTerm('')}
                                     >
@@ -323,7 +372,7 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
                                 {engagementFilter !== 'all' && (
                                     <Badge
                                         bg="dark"
-                                        className="me-1"
+                                        className="me-1 mb-1"
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => setEngagementFilter('all')}
                                     >
@@ -334,7 +383,7 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
                                     variant="link"
                                     size="sm"
                                     onClick={clearFilters}
-                                    className="text-decoration-none"
+                                    className="text-decoration-none mb-1"
                                 >
                                     Clear All
                                 </Button>
@@ -384,9 +433,9 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
                                                 <td className="align-middle">{alumnus.batch}</td>
                                                 <td className="align-middle">
                                                     {Array.isArray(alumnus.willingness) && alumnus.willingness.length > 0 ? (
-                                                        <div>
+                                                        <div style={{ maxHeight: '80px', overflowY: 'auto' }}>
                                                             {alumnus.willingness.map(willing => {
-                                                                const option = WILLINGNESS_OPTIONS.find(opt => opt.value === willing);
+                                                                const option = getWillingnessOption(willing);
                                                                 return (
                                                                     <Badge
                                                                         bg={option?.color || 'secondary'}
@@ -562,7 +611,7 @@ const AlumniList = ({ onAlumnusSelect, departmentFilter, batchFilter }) => {
                                     <p><strong>Willing to help with:</strong></p>
                                     <div>
                                         {selectedAlumnus.willingness.map(willing => {
-                                            const option = WILLINGNESS_OPTIONS.find(opt => opt.value === willing);
+                                            const option = getWillingnessOption(willing);
                                             return (
                                                 <Badge
                                                     bg={option?.color || 'secondary'}
