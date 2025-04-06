@@ -18,7 +18,7 @@ import { jobService } from '../../services/api/jobs';
 import { useAuth } from '../../contexts/AuthContext';
 import DOMPurify from 'dompurify';
 import './JobDetails.css';
-
+import Footer from '../layout/Footer/Footer';
 const JobDetails = () => {
     const { id } = useParams();
     const { user } = useAuth();
@@ -94,7 +94,7 @@ const JobDetails = () => {
     }, [id]);
 
     return (
-        <Container className="job-details-container py-5">
+        <><Container className="job-details-container py-5">
             <Row className="mb-4">
                 <Col>
                     <Link to="/jobs" className="back-link">
@@ -323,7 +323,7 @@ const JobDetails = () => {
             ) : (
                 <Alert variant="warning">Job not found or has been removed.</Alert>
             )}
-        </Container>
+        </Container><><Footer /></></>
     );
 };
 

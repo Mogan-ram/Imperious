@@ -1,0 +1,222 @@
+/* ProjectStyles.css - Import in all project components */
+
+/* Common card styling */
+.project-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    height: 100%;
+}
+
+.project-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Progress styling */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    overflow: visible;
+}
+
+.progress-bar {
+    position: relative;
+    border-radius: 4px;
+    transition: width 1s ease;
+}
+
+.progress-bar::after {
+    content: attr(data-progress) '%';
+    position: absolute;
+    right: 0;
+    top: -20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+}
+
+/* Badge styling */
+.tech-badge {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.35em 0.7em;
+    border-radius: 12px;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    transition: all 0.2s ease;
+}
+
+.tech-badge:hover {
+    transform: scale(1.05);
+}
+
+/* Tab styling */
+.nav-tabs .nav-link {
+    border: none;
+    color: #666;
+    font-weight: 500;
+    padding: 0.8rem 1.2rem;
+    border-radius: 0;
+    position: relative;
+}
+
+.nav-tabs .nav-link.active {
+    color: #4361ee;
+    background: none;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: #4361ee;
+    border-radius: 3px 3px 0 0;
+}
+
+/* Status indicators */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.status-not-started {
+    background-color: #e0e0e0;
+}
+
+.status-in-progress {
+    background-color: #3498db;
+}
+
+.status-completed {
+    background-color: #2ecc71;
+}
+
+/* User avatar */
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #4361ee;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+/* Animated section */
+.animated-section {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Module card */
+.module-card {
+    border-left: 4px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.module-card:hover {
+    background-color: #f8f9fa;
+    border-left-color: #4361ee;
+}
+
+.module-completed {
+    border-left-color: #2ecc71;
+}
+
+.module-in-progress {
+    border-left-color: #3498db;
+}
+
+/* Button styling */
+.btn-project {
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-project:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Search and filter section */
+.search-filter-section {
+    background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Team member card */
+.team-member-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.team-member-card:hover {
+    background-color: #e9ecef;
+    transform: translateX(5px);
+}
+
+/* Project stats card */
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.stats-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4361ee;
+    margin-bottom: 0.5rem;
+}
+
+.stats-label {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+}

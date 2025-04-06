@@ -195,55 +195,6 @@ def delete_project(project_id):
         return jsonify({"message": "Failed to delete project"}), 500
 
 
-@projects_bp.route("/<project_id>/files", methods=["POST"])
-@jwt_required()
-def upload_project_files(project_id):
-    try:
-        current_user = get_jwt_identity()
-
-        # Get project
-        project = Project.get_by_id(project_id)
-
-        if not project:
-            return jsonify({"message": "Project not found"}), 404
-
-        # Check ownership
-        if project["created_by"] != current_user:
-            return jsonify({"message": "Unauthorized"}), 403
-
-        if "file" not in request.files:
-            return jsonify({"message": "No file part"}), 400
-
-        file = request.files["file"]
-
-        if file.filename == "":
-            return jsonify({"message": "No selected file"}), 400
-
-        if file and validate_file_type(file.filename):
-            # Create folder for project files
-            project_folder = os.path.join(
-                current_app.config["UPLOAD_FOLDER"], project_id
-            )
-            os.makedirs(project_folder, exist_ok=True)
-
-            # Save file
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(project_folder, filename))
-
-            return jsonify({"message": "File uploaded successfully"}), 200
-
-        return jsonify({"message": "File type not allowed"}), 400
-
-    except Exception as e:
-        current_app.logger.error(f"Error uploading file: {str(e)}")
-        return jsonify({"message": "Failed to upload file"}), 500
-
-
-@projects_bp.route("/uploads/<path:filename>")
-def serve_project_file(filename):
-    return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
-
-
 # Create a custom JSON encoder for MongoDB types
 class MongoJSONEncoder(JSONEncoder):
     def default(self, obj):

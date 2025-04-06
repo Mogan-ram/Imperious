@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
 import { FaCheck, FaEye, FaBan } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import Footer from '../layout/Footer/Footer';
 
 const AlumniMentorship = () => {
     const [requests, setRequests] = useState([]);
@@ -101,7 +102,7 @@ const AlumniMentorship = () => {
     }
 
     return (
-        <Container className="py-4">
+        <><Container className="py-4">
             <h2 className="mb-4">Mentorship Requests</h2>
 
             <Tabs
@@ -271,7 +272,7 @@ const AlumniMentorship = () => {
                     </Card>
                 </Tab>
             </Tabs>
-        </Container>
+        </Container><Footer /></>
     );
 };
 

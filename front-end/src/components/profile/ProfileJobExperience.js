@@ -29,7 +29,12 @@ const CurrentPositionCard = ({ jobProfile, isOwnProfile, onEditJobProfile, onAdd
         <Card.Body>
             {jobProfile ? (
                 <div>
-                    <h4>{jobProfile.job_title}</h4>
+
+                    {jobProfile && jobProfile.job_title ? (
+                        <h4>{jobProfile.job_title}</h4>
+                    ) : (
+                        <h4>Position not specified</h4>
+                    )}
                     <h5>{jobProfile.company}</h5>
                     {jobProfile.location && (
                         <p className="text-muted">

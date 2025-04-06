@@ -2,66 +2,68 @@
 
 .modern-navbar {
     background-color: #1a1a1a !important;
-    padding: 0.5rem;
-    /* Reduced padding */
-    border-radius: 10px;
-    margin: 5px 10px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    margin: 3px 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease, opacity 0.3s ease;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    position: relative;
+    /* Changed from fixed/absolute to relative */
     z-index: 1030;
+    height: auto;
 }
 
-/* Decrease the brand font size */
+/* Logo styling */
 .navbar-brand {
-    font-weight: 700;
-    font-size: 1rem;
-    /* Reduced from 1.3rem */
-    color: white !important;
-    padding-left: 10px;
+    font-size: 0.2rem;
+    padding: 0;
+    margin-right: 0.5rem;
+}
+
+.logo {
+    height: 32px;
+    width: auto;
+    max-width: 100%;
 }
 
 /* Adjust the main navigation spacing */
 .main-nav {
     display: flex;
     align-items: center;
-    gap: 4px;
-    /* Reduced gap between nav items */
+    gap: 2px;
+    margin-left: 0;
+    /* Remove default margin */
 }
 
 /* Tighten spacing between nav icon and text */
 .nav-icon {
     margin-right: 4px;
-    /* Reduced margin */
     font-size: 0.9rem;
 }
 
 .nav-item {
     color: rgba(255, 255, 255, 0.8) !important;
-    padding: 6px 12px !important;
+    padding: 4px 8px !important;
     border-radius: 6px;
     display: flex;
     align-items: center;
     transition: all 0.2s ease;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
-/* Other styles remain as is */
+/* Fix for active class (don't use !important) */
 .nav-item:hover {
     color: #c6c6ff !important;
     background-color: rgba(255, 255, 255, 0.1);
 }
 
 .nav-item.active {
-    background-color: #5046e5 !important;
+    background-color: #5046e5;
     color: white !important;
 }
 
 .active-link {
-    color: white !important;
+    color: white;
 }
 
 /* Dropdown styling */
@@ -70,15 +72,16 @@
     border: none;
     border-radius: 8px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    padding: 8px 0;
-    margin-top: 10px;
+    padding: 6px 0;
+    margin-top: 8px;
 }
 
 .dropdown-item {
     color: rgba(255, 255, 255, 0.8);
-    padding: 8px 16px;
+    padding: 6px 12px;
     display: flex;
     align-items: center;
+    font-size: 0.9rem;
 }
 
 .dropdown-item:hover {
@@ -94,12 +97,12 @@
 .user-profile-menu {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .user-avatar {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     background-color: #5046e5;
     color: white;
     border-radius: 50%;
@@ -107,11 +110,13 @@
     align-items: center;
     justify-content: center;
     font-weight: 600;
+    font-size: 0.9rem;
 }
 
 .user-name {
     color: white;
     font-weight: 500;
+    font-size: 0.9rem;
 }
 
 .user-dropdown .dropdown-toggle::after {
@@ -127,10 +132,11 @@
 .sign-in-btn {
     border-radius: 6px;
     font-weight: 500;
-    padding: 6px 16px;
+    padding: 4px 12px;
     background-color: white;
     color: #1a1a1a;
     border: none;
+    font-size: 0.9rem;
 }
 
 .sign-in-btn:hover {
@@ -138,12 +144,17 @@
     color: #1a1a1a;
 }
 
-/* Responsive adjustments */
+/* Container adjustments */
+.container {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* Fix for navbars in collapsed state */
 @media (max-width: 991px) {
     .modern-navbar {
         margin: 0;
         border-radius: 0;
-        position: fixed;
     }
 
     .main-nav {
@@ -151,14 +162,31 @@
     }
 
     .nav-item {
-        padding: 10px 16px !important;
+        padding: 8px 12px !important;
     }
 
     .user-profile-menu {
-        padding: 6px 0;
+        padding: 4px 0;
+    }
+
+    .navbar-brand {
+        margin-right: 0;
     }
 }
 
+/* Remove top margin since header is not fixed */
 body {
-    margin-top: 70px;
+    margin-top: 0;
+}
+
+/* Fix for active state in sidebar and top nav */
+.nav-item.active .active-link,
+.nav-item .active-link {
+    color: inherit;
+}
+
+/* Fix for sidebar active style */
+.sidebar-nav-item.active {
+    background-color: #5046e5;
+    color: white !important;
 }

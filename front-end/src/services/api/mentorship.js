@@ -46,22 +46,25 @@ export const mentorshipService = {
         }
     },
 
+    // Example update in mentorship.js
     getMentees: async () => {
         try {
             const response = await axios.get('/mentorship/my_mentees');
-            console.log('Mentees API response:', response.data);
-            // Ensure we return the data property
-            return response.data;
-        } catch (error) {
-            console.error('Error getting mentees:', error);
-            // Return empty object with expected structure instead of throwing
-            return {
+            return response.data || {
                 project_groups: [],
                 mentees: [],
                 mentor: {
                     name: "Unknown",
                     dept: ""
                 },
+                mentees_count: 0
+            };
+        } catch (error) {
+            console.error('Error getting mentees:', error);
+            return {
+                project_groups: [],
+                mentees: [],
+                mentor: { name: "Unknown", dept: "" },
                 mentees_count: 0
             };
         }

@@ -27,27 +27,6 @@ class Profile:
             return False
 
     @staticmethod
-    def update_photo(email, photo_url):
-        """
-        Update a user's profile photo.
-
-        Args:
-            email: Email of the user
-            photo_url: URL to the profile photo
-
-        Returns:
-            bool: Success status
-        """
-        try:
-            users_collection.update_one(
-                {"email": email}, {"$set": {"photo_url": photo_url}}
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Error updating profile photo: {e}")
-            return False
-
-    @staticmethod
     def get_job_profile(user_id):
         """
         Get job profile for a user.

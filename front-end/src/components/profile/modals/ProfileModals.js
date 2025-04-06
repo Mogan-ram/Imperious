@@ -1,7 +1,7 @@
-import React from "react";
-import { Modal, Form, Button, Row, Col, Spinner } from 'react-bootstrap';
+import React, { useState } from "react";
+import { Modal, Form, Button, Row, Col } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBriefcase } from '@fortawesome/free-solid-svg-icons';
+import { faCheck } from '@fortawesome/free-solid-svg-icons';
 
 // Edit Profile Modal
 export const EditProfileModal = ({
@@ -143,55 +143,137 @@ export const EditProfileModal = ({
     );
 };
 
-// Photo Upload Modal
-export const PhotoUploadModal = ({
+// Avatar Selection Modal
+export const AvatarSelectionModal = ({
     show,
     onHide,
-    photoPreview,
-    currentPhoto,
-    onPhotoChange,
-    onPhotoUpload,
-    uploading
+    selectedAvatar,
+    setSelectedAvatar,
+    userRole,
+    userGender,
+    onAvatarSelect
 }) => {
+    const [gender, setGender] = useState(userGender || 'male');
+
+    // Define avatar options based on user role and gender
+    const getAvatarOptions = () => {
+        if (userRole === 'student') {
+            return gender === 'female'
+                ? [
+                    { id: 'girl_stu_1', src: '/img/girl_stu_1.jpg', alt: 'Female Student 1' },
+                    { id: 'girl_stu_2', src: '/img/girl_stu_2.jpg', alt: 'Female Student 2' },
+                    { id: 'girl_stu_3', src: '/img/girl_stu_3.jpg', alt: 'Female Student 3' },
+                    { id: 'girl_stu_4', src: '/img/girl_stu_4.jpg', alt: 'Female Student 4' }
+                ]
+                : [
+                    { id: 'stu_1', src: '/img/stu_1.jpg', alt: 'Male Student 1' },
+                    { id: 'stu_2', src: '/img/stu_2.jpg', alt: 'Male Student 2' },
+                    { id: 'stu_3', src: '/img/stu_3.jpg', alt: 'Male Student 3' },
+                    { id: 'stu_4', src: '/img/stu_4.jpg', alt: 'Male Student 4' }
+                ];
+        } else if (userRole === 'alumni') {
+            return gender === 'female'
+                ? [
+                    { id: 'alum_fem_1', src: '/img/alum_fem_1.jpg', alt: 'Female Alumni 1' },
+                    { id: 'alum_fem_2', src: '/img/alum_fem_2.jpg', alt: 'Female Alumni 2' },
+                    { id: 'alum_fem_3', src: '/img/alum_fem_3.jpg', alt: 'Female Alumni 3' }
+                ]
+                : [
+                    { id: 'alum_1', src: '/img/alum_1.jpg', alt: 'Male Alumni 1' },
+                    { id: 'alum_2', src: '/img/alum_2.jpg', alt: 'Male Alumni 2' },
+                    { id: 'alum_3', src: '/img/alum_3.jpg', alt: 'Male Alumni 3' }
+                ];
+        } else {
+            // Admin/Staff
+            return [
+                { id: 'admin', src: '/img/admin.jpg', alt: 'Admin' }
+            ];
+        }
+    };
+
+    // Add default avatar option
+    const avatarOptions = [
+        { id: 'default', src: '/img/default.jpg', alt: 'Default Avatar' },
+        ...getAvatarOptions()
+    ];
+
     return (
         <Modal
             show={show}
             onHide={onHide}
             centered
+            size="lg"
         >
             <Modal.Header closeButton>
-                <Modal.Title>Update Profile Photo</Modal.Title>
+                <Modal.Title>Choose Your Avatar</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <div className="text-center mb-3">
-                    {photoPreview ? (
-                        <img
-                            src={photoPreview}
-                            alt="Preview"
-                            className="img-thumbnail"
-                            style={{ maxHeight: '200px' }}
-                        />
-                    ) : (
-                        <img
-                            src={currentPhoto || "https://via.placeholder.com/150"}
-                            alt="Current"
-                            className="img-thumbnail"
-                            style={{ maxHeight: '200px' }}
-                        />
-                    )}
+                <div className="text-center mb-4">
+                    <p>Select an avatar to use as your profile picture.</p>
                 </div>
 
-                <Form.Group controlId="profilePhoto" className="mb-3">
-                    <Form.Label>Choose a new photo</Form.Label>
-                    <Form.Control
-                        type="file"
-                        accept="image/*"
-                        onChange={onPhotoChange}
-                    />
-                    <Form.Text className="text-muted">
-                        Maximum file size: 2MB. Recommended dimensions: 500x500 pixels.
-                    </Form.Text>
-                </Form.Group>
+                <Row className="mb-3 justify-content-center">
+                    <Col md={6}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Gender (for avatar options)</Form.Label>
+                            <Form.Select
+                                value={gender}
+                                onChange={(e) => {
+                                    setGender(e.target.value);
+                                    setSelectedAvatar('default'); // Reset selection when gender changes
+                                }}
+                            >
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </Form.Select>
+                        </Form.Group>
+                    </Col>
+                </Row>
+
+                <div className="d-flex flex-wrap justify-content-center gap-4 mb-4">
+                    {avatarOptions.map((avatar) => (
+                        <div
+                            key={avatar.id}
+                            className={`avatar-option position-relative ${selectedAvatar === avatar.id ? 'selected' : ''}`}
+                            onClick={() => setSelectedAvatar(avatar.id)}
+                            style={{
+                                cursor: 'pointer',
+                                border: selectedAvatar === avatar.id ? '3px solid #4e73df' : '3px solid transparent',
+                                borderRadius: '8px',
+                                padding: '3px'
+                            }}
+                        >
+                            <img
+                                src={avatar.src}
+                                alt={avatar.alt}
+                                className="img-thumbnail"
+                                style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px' }}
+                            />
+                            {selectedAvatar === avatar.id && (
+                                <div
+                                    className="position-absolute"
+                                    style={{
+                                        top: '5px',
+                                        right: '5px',
+                                        background: '#4e73df',
+                                        borderRadius: '50%',
+                                        width: '24px',
+                                        height: '24px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white'
+                                    }}
+                                >
+                                    <FontAwesomeIcon icon={faCheck} />
+                                </div>
+                            )}
+                            <div className="text-center mt-1">
+                                <small>{avatar.alt}</small>
+                            </div>
+                        </div>
+                    ))}
+                </div>
 
                 <div className="d-flex justify-content-end mt-4">
                     <Button
@@ -203,24 +285,11 @@ export const PhotoUploadModal = ({
                     </Button>
                     <Button
                         variant="primary"
-                        onClick={onPhotoUpload}
-                        disabled={!photoPreview || uploading}
+                        onClick={() => {
+                            onAvatarSelect(selectedAvatar);
+                        }}
                     >
-                        {uploading ? (
-                            <>
-                                <Spinner
-                                    as="span"
-                                    animation="border"
-                                    size="sm"
-                                    role="status"
-                                    aria-hidden="true"
-                                    className="me-2"
-                                />
-                                Uploading...
-                            </>
-                        ) : (
-                            'Upload Photo'
-                        )}
+                        Save Avatar
                     </Button>
                 </div>
             </Modal.Body>

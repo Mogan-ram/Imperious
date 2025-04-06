@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Badge, Button } from 'react-bootstrap';
-import { FaCalendarAlt, FaUser, FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaCalendarAlt, FaUser, FaPlus, FaEdit, FaTrash, FaBookOpen } from 'react-icons/fa';
 import { newsEventsService } from '../../../services/api/news-events';
 import { useAuth } from '../../../contexts/AuthContext';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import Pagination from 'react-bootstrap/Pagination';
 import { toast } from 'react-toastify';
 import './NewsListStyles.css';
+import Footer from '../../layout/Footer/Footer';
 
 const NewsList = () => {
     const [allNews, setAllNews] = useState([]);
@@ -128,6 +129,11 @@ const NewsList = () => {
         }
     };
 
+    // Navigate to the detailed article view
+    const handleReadFullArticle = (newsId) => {
+        navigate(`/news/${newsId}`);
+    };
+
     if (loading) {
         return <LoadingSpinner />;
     }
@@ -181,7 +187,7 @@ const NewsList = () => {
     };
 
     return (
-        <div className="news-page">
+        <><div className="news-page">
             <Container fluid className="py-4">
                 {/* News Header with Create Button */}
                 <Row className="mb-4">
@@ -207,24 +213,9 @@ const NewsList = () => {
                             <div className="trending-news-list">
                                 {trendingNews.map((item, index) => (
                                     <div key={item._id || index} className="trending-news-item">
-                                        {item.image_url ? (
-                                            <div className="trending-thumbnail">
-                                                <img
-                                                    src={item.image_url.startsWith('http')
-                                                        ? item.image_url
-                                                        : `http://localhost:5000${item.image_url}`}
-                                                    alt={item.title}
-                                                    onError={(e) => {
-                                                        console.log('Image load error:', e);
-                                                        e.target.src = 'https://via.placeholder.com/100x70?text=News';
-                                                    }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="trending-thumbnail placeholder-thumbnail">
-                                                <span>{index + 1}</span>
-                                            </div>
-                                        )}
+                                        <div className="trending-thumbnail placeholder-thumbnail">
+                                            <span>{index + 1}</span>
+                                        </div>
                                         <div className="trending-content">
                                             <h6 className="trending-title">{item.title}</h6>
                                             <div className="trending-meta">
@@ -233,6 +224,13 @@ const NewsList = () => {
                                                     {new Date(item.created_at).toLocaleDateString()}
                                                 </small>
                                             </div>
+                                            <Button
+                                                variant="link"
+                                                className="p-0 read-more-link"
+                                                onClick={() => handleReadFullArticle(item._id)}
+                                            >
+                                                Read article →
+                                            </Button>
                                         </div>
                                     </div>
                                 ))}
@@ -247,25 +245,9 @@ const NewsList = () => {
                             {allNews.length > 0 && (
                                 <div className="featured-news mb-4">
                                     <Card className="featured-news-card">
-                                        {allNews[0].image_url ? (
-                                            <div className="featured-img-container">
-                                                <Card.Img
-                                                    variant="top"
-                                                    src={allNews[0].image_url.startsWith('http')
-                                                        ? allNews[0].image_url
-                                                        : `http://localhost:5000${allNews[0].image_url}`}
-                                                    className="featured-img"
-                                                    onError={(e) => {
-                                                        console.log('Image load error:', e);
-                                                        e.target.src = 'https://via.placeholder.com/800x400?text=Featured+News';
-                                                    }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="featured-placeholder">
-                                                <span>Featured News</span>
-                                            </div>
-                                        )}
+                                        <div className="featured-placeholder">
+                                            <span>Featured News</span>
+                                        </div>
                                         <Card.Body>
                                             <div className="d-flex justify-content-between align-items-start mb-2">
                                                 <div>
@@ -307,15 +289,24 @@ const NewsList = () => {
                                                 {allNews[0].description.substring(0, 150)}
                                                 {allNews[0].description.length > 150 ? '...' : ''}
                                             </Card.Text>
-                                            <div className="featured-meta">
-                                                <span>
-                                                    <FaUser className="me-1" />
-                                                    {allNews[0].author ? allNews[0].author.name : 'Unknown'}
-                                                </span>
-                                                <span>
-                                                    <FaCalendarAlt className="me-1" />
-                                                    {new Date(allNews[0].created_at).toLocaleDateString()}
-                                                </span>
+                                            <div className="d-flex justify-content-between align-items-center">
+                                                <div className="featured-meta">
+                                                    <span>
+                                                        <FaUser className="me-1" />
+                                                        {allNews[0].author ? allNews[0].author.name : 'Unknown'}
+                                                    </span>
+                                                    <span>
+                                                        <FaCalendarAlt className="me-1" />
+                                                        {new Date(allNews[0].created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                <Button
+                                                    variant="primary"
+                                                    className="read-full-btn"
+                                                    onClick={() => handleReadFullArticle(allNews[0]._id)}
+                                                >
+                                                    <FaBookOpen className="me-2" /> Read Full Article
+                                                </Button>
                                             </div>
                                         </Card.Body>
                                     </Card>
@@ -327,23 +318,9 @@ const NewsList = () => {
                                 {allNews.slice(1).map((item) => (
                                     <Col md={6} key={item._id} className="mb-4">
                                         <Card className="news-card h-100">
-                                            {item.image_url ? (
-                                                <Card.Img
-                                                    variant="top"
-                                                    src={item.image_url.startsWith('http')
-                                                        ? item.image_url
-                                                        : `http://localhost:5000${item.image_url}`}
-                                                    className="news-card-img"
-                                                    onError={(e) => {
-                                                        console.log('Image load error:', e);
-                                                        e.target.src = 'https://via.placeholder.com/400x200?text=News';
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div className="news-card-placeholder">
-                                                    <span>News</span>
-                                                </div>
-                                            )}
+                                            <div className="news-card-placeholder">
+                                                <span>News</span>
+                                            </div>
                                             <Card.Body>
                                                 <div className="d-flex justify-content-between align-items-start mb-2">
                                                     <div>
@@ -381,16 +358,26 @@ const NewsList = () => {
                                                     {item.description.substring(0, 100)}
                                                     {item.description.length > 100 ? '...' : ''}
                                                 </Card.Text>
-                                                <div className="news-meta d-flex justify-content-between align-items-center">
-                                                    <small>
-                                                        <FaCalendarAlt className="me-1" />
-                                                        {new Date(item.created_at).toLocaleDateString()}
-                                                    </small>
-                                                    <small>
-                                                        <FaUser className="me-1" />
-                                                        {item.author ? item.author.name : 'Unknown'}
-                                                    </small>
+                                                <div className="d-flex justify-content-between align-items-center">
+                                                    <div className="news-meta d-flex align-items-center">
+                                                        <small>
+                                                            <FaCalendarAlt className="me-1" />
+                                                            {new Date(item.created_at).toLocaleDateString()}
+                                                        </small>
+                                                        <small className="ms-2">
+                                                            <FaUser className="me-1" />
+                                                            {item.author ? item.author.name : 'Unknown'}
+                                                        </small>
+                                                    </div>
                                                 </div>
+                                                <Button
+                                                    variant="outline-primary"
+                                                    size="sm"
+                                                    className="w-100 mt-3"
+                                                    onClick={() => handleReadFullArticle(item._id)}
+                                                >
+                                                    <FaBookOpen className="me-1" /> Read Full Article
+                                                </Button>
                                             </Card.Body>
                                         </Card>
                                     </Col>
@@ -425,24 +412,9 @@ const NewsList = () => {
                             <div className="recommended-news-list">
                                 {recommendedNews.map((item, index) => (
                                     <div key={item._id || index} className="recommended-news-item">
-                                        {item.image_url ? (
-                                            <div className="recommended-thumbnail">
-                                                <img
-                                                    src={item.image_url.startsWith('http')
-                                                        ? item.image_url
-                                                        : `http://localhost:5000${item.image_url}`}
-                                                    alt={item.title}
-                                                    onError={(e) => {
-                                                        console.log('Image load error:', e);
-                                                        e.target.src = 'https://via.placeholder.com/100x70?text=News';
-                                                    }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="recommended-thumbnail placeholder-thumbnail">
-                                                <span>{index + 1}</span>
-                                            </div>
-                                        )}
+                                        <div className="recommended-thumbnail placeholder-thumbnail">
+                                            <span>{index + 1}</span>
+                                        </div>
                                         <div className="recommended-content">
                                             <h6 className="recommended-title">{item.title}</h6>
                                             <div className="recommended-meta">
@@ -451,6 +423,13 @@ const NewsList = () => {
                                                     {item.author ? item.author.name : 'Unknown'}
                                                 </small>
                                             </div>
+                                            <Button
+                                                variant="link"
+                                                className="p-0 read-more-link"
+                                                onClick={() => handleReadFullArticle(item._id)}
+                                            >
+                                                Read article →
+                                            </Button>
                                         </div>
                                     </div>
                                 ))}
@@ -459,7 +438,7 @@ const NewsList = () => {
                     </Col>
                 </Row>
             </Container>
-        </div>
+        </div><Footer /></>
     );
 };
 

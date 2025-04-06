@@ -7,8 +7,11 @@ from flask_jwt_extended import (
     create_refresh_token,
 )
 from app.auth.models import User
+from app.utils.email import send_bug_report_email
 from app.utils.validators import validate_user_input
 from datetime import timedelta
+from app.models.bug_report import bug_reports_collection as BugReport
+
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -201,3 +204,41 @@ def update_profile():
     except Exception as e:
         current_app.logger.error(f"Error updating profile: {str(e)}")
         return jsonify({"message": "Internal server error"}), 500
+
+
+@auth_bp.route("/submit-bug-report", methods=["POST"])
+def submit_bug_report():
+    """Handle bug report submissions from footer"""
+    try:
+        data = request.get_json()
+        current_app.logger.info(f"Received bug report: {data}")
+
+        # Validate input
+        if not all(k in data for k in ["name", "email", "description"]):
+            return jsonify({"message": "Missing required fields"}), 400
+
+        # Send email
+        try:
+            email_sent = send_bug_report_email(data)
+            if not email_sent:
+                current_app.logger.error("Failed to send email")
+                return jsonify({"message": "Failed to send email notification"}), 500
+        except Exception as email_error:
+            current_app.logger.error(f"Email error: {str(email_error)}")
+            # Continue with saving to database even if email fails
+
+        # Save to database
+        try:
+            bug_report_id = BugReport.create(data)
+            if not bug_report_id:
+                current_app.logger.error("Failed to save bug report to database")
+                return jsonify({"message": "Failed to save bug report"}), 500
+        except Exception as db_error:
+            current_app.logger.error(f"Database error: {str(db_error)}")
+            return jsonify({"message": "Failed to save bug report to database"}), 500
+
+        return jsonify({"message": "Bug report submitted successfully"}), 201
+
+    except Exception as e:
+        current_app.logger.error(f"Error submitting bug report: {str(e)}")
+        return jsonify({"message": f"An error occurred: {str(e)}"}), 500

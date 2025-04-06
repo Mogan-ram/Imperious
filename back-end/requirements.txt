@@ -8,3 +8,5 @@ python-dateutil==2.8.2
 gunicorn==20.1.0
 eventlet==0.33.3
 Pillow
+flask_mail
+python-dotenv

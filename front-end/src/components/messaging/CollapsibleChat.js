@@ -183,7 +183,7 @@ const CollapsibleChat = () => {
                             >
                                 {message.sender !== user?._id && (
                                     <img
-                                        src={message.sender_details?.avatar || "https://via.placeholder.com/30"}
+                                        src={message.sender_details?.avatar || "/img/default.png"}
                                         alt="avatar"
                                         className="message-avatar"
                                     />
@@ -198,7 +198,7 @@ const CollapsibleChat = () => {
 
                                 {message.sender === user?._id && (
                                     <img
-                                        src={user.avatar || "https://via.placeholder.com/30"}
+                                        src={user.avatar || "/img/default.png"}
                                         alt="avatar"
                                         className="message-avatar"
                                     />
