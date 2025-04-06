@@ -230,40 +230,6 @@ class Project:
             return False
 
     @staticmethod
-    def add_file(project_id, file_data):
-        """
-        Add a file to a project.
-
-        Args:
-            project_id: Project ID
-            file_data: File data containing name, path, type, description, and owner_id
-
-        Returns:
-            bool: Success status
-        """
-        try:
-            # Create file info
-            file_info = {
-                "name": file_data["name"],
-                "path": file_data["path"],
-                "type": file_data["type"],
-                "description": file_data.get("description", ""),
-                "uploaded_at": datetime.utcnow(),
-                "uploaded_by": file_data["owner_id"],
-            }
-
-            # Update project
-            result = projects_collection.update_one(
-                {"_id": ObjectId(project_id)}, {"$push": {"files": file_info}}
-            )
-
-            return result.modified_count > 0
-
-        except Exception as e:
-            logger.error(f"Error adding file to project: {str(e)}")
-            return False
-
-    @staticmethod
     def add_collaborator(project_id, user_id, role="viewer"):
         """
         Add a collaborator to a project.

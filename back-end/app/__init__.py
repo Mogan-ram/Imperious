@@ -2,24 +2,28 @@ import os
 import logging
 import atexit
 import signal
-from flask import Flask, current_app, jsonify, request
+from app.auth.models import User
 from flask_cors import CORS
+from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
+from flask_mail import Mail, Message
+from app.messaging.models import Conversation, Message
+from flask import Flask, current_app, jsonify, request
 from flask_socketio import SocketIO, join_room, leave_room
 
-from app.auth.models import User
-from app.messaging.models import Conversation, Message
 
 # Initialize extensions
 jwt = JWTManager()
 socketio = SocketIO(
     cors_allowed_origins="*",  # Replace with your frontend URL in production
     async_mode="threading",  # Use threading mode
-    logger=True,  # Enable logging
-    engineio_logger=True,  # Enable engine.io logging
+    logger=False,  # Enable logging
+    engineio_logger=False,  # Enable engine.io logging
 )
 # Dictionary to track online users
 online_users = {}
+mail = Mail()
+load_dotenv()
 
 
 def create_app(config_name=None):
@@ -47,6 +51,17 @@ def create_app(config_name=None):
         },
     )
 
+    # Mail configuration
+    app.config["MAIL_SERVER"] = "smtp.gmail.com"  # Or your SMTP server
+    app.config["MAIL_PORT"] = 587
+    app.config["MAIL_USE_TLS"] = True
+    app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")  # Set as env variable
+    app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")  # Set as env variable
+    app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER")
+
+    mail = Mail()
+    mail.init_app(app)
+
     # Initialize extensions
     jwt.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
@@ -63,6 +78,7 @@ def create_app(config_name=None):
     from app.messaging.routes import messaging_bp
     from app.connections.routes import connections_bp
     from app.feeds.routes import feeds_bp
+    from app.utils.email import send_bug_report_email
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(feeds_bp, url_prefix="/feeds")

@@ -10,7 +10,8 @@ import {
     faBuilding,
     faHandshake,
     faCheck,
-    faClock
+    faClock,
+    faUserCircle
 } from '@fortawesome/free-solid-svg-icons';
 
 const ProfileHeader = ({
@@ -20,8 +21,7 @@ const ProfileHeader = ({
     userRole,
     onEditClick,
     onPhotoClick,
-    onSendConnectionRequest,
-    showPhotoModal
+    onSendConnectionRequest
 }) => {
     // Helper to render the appropriate connection button
     const renderConnectionButton = () => {
@@ -103,13 +103,24 @@ const ProfileHeader = ({
         }
     };
 
+    // Define a default avatar based on role
+    const getDefaultAvatar = () => {
+        // If photo_url is defined and not empty, use it
+        if (profileData.photo_url) {
+            return profileData.photo_url;
+        }
+
+        // Otherwise return the default avatar image
+        return "/img/default.png";
+    };
+
     return (
         <div className="profile-header">
             <div className="profile-cover-img"></div>
             <div className="profile-user-info">
                 <div className="profile-avatar-container">
                     <img
-                        src={profileData.photo_url || "https://via.placeholder.com/150"}
+                        src={getDefaultAvatar()}
                         alt={profileData.name}
                         className="profile-avatar"
                     />
@@ -117,6 +128,7 @@ const ProfileHeader = ({
                         <button
                             className="photo-edit-button"
                             onClick={onPhotoClick}
+                            title="Change avatar"
                         >
                             <FontAwesomeIcon icon={faEdit} />
                         </button>

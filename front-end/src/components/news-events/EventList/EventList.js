@@ -7,7 +7,6 @@ import {
     FaClock,
     FaPlus,
     FaUser,
-    FaCalendarAlt,
     FaEdit,
     FaTrash,
     FaExternalLinkAlt
@@ -17,6 +16,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import './EventListStyles.css';
+import Footer from '../../layout/Footer/Footer';
 
 const EventList = () => {
     const [events, setEvents] = useState([]);
@@ -168,7 +168,7 @@ const EventList = () => {
     const groupedEvents = getGroupedEvents();
 
     return (
-        <div className="events-page">
+        <><div className="events-page">
             <div className="event-header">
                 <Container>
                     <Row className="align-items-center">
@@ -218,6 +218,7 @@ const EventList = () => {
                                 if (event.event_time) {
                                     formattedTime = event.event_time;
                                 }
+
                                 // If not available, try to extract from event_date
                                 else if (event.event_date) {
                                     const eventDateTime = new Date(event.event_date);
@@ -241,22 +242,6 @@ const EventList = () => {
 
                                         <div className="event-content">
                                             <div className="event-card">
-
-                                                {event.image_url && (
-                                                    <div className="event-image">
-                                                        <img
-                                                            src={event.image_url.startsWith('http')
-                                                                ? event.image_url
-                                                                : `http://localhost:5000${event.image_url}`}
-                                                            alt={event.title}
-                                                            onError={(e) => {
-                                                                console.log('Image load error:', e);
-                                                                e.target.src = 'https://via.placeholder.com/100x100?text=Event';
-                                                            }}
-                                                        />
-                                                    </div>
-                                                )}
-
                                                 <div className="event-details">
                                                     <div className="d-flex justify-content-between align-items-start">
                                                         <h4 className="event-title">{event.title}</h4>
@@ -347,7 +332,7 @@ const EventList = () => {
                     </div>
                 )}
             </Container>
-        </div>
+        </div><Footer /></>
     );
 };
 

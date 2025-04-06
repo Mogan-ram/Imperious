@@ -19,6 +19,7 @@ import { mentorshipService } from '../../services/api/mentorship';
 import { projectService } from '../../services/api/projects';
 import { connectionService } from '../../services/api/connection';
 import { jobProfileService } from '../../services/api/jobProfile';
+import avatarService from "../../services/api/avatarService";
 import './Profile.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell } from '@fortawesome/free-solid-svg-icons';
@@ -32,7 +33,7 @@ import ProfileConnections from './ProfileConnections';
 import ProfileJobExperience from './ProfileJobExperience';
 import {
     EditProfileModal,
-    PhotoUploadModal,
+    AvatarSelectionModal, // Import the new AvatarSelectionModal
     JobProfileModal,
     JobExperienceModal
 } from './modals/ProfileModals';
@@ -57,15 +58,16 @@ const Profile = () => {
     const [isOwnProfile, setIsOwnProfile] = useState(true);
     const [showRequestsDropdown, setShowRequestsDropdown] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState(null);
-    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+    // Avatar states
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [selectedAvatar, setSelectedAvatar] = useState('default');
+    const [userGender, setUserGender] = useState('male');
 
     // Modal states
     const [showEditModal, setShowEditModal] = useState(false);
-    const [showPhotoModal, setShowPhotoModal] = useState(false);
     const [showJobProfileModal, setShowJobProfileModal] = useState(false);
     const [showJobExperienceModal, setShowJobExperienceModal] = useState(false);
-    const [photoFile, setPhotoFile] = useState(null);
-    const [photoPreview, setPhotoPreview] = useState(null);
 
     // Form states
     const [editForm, setEditForm] = useState({
@@ -149,46 +151,32 @@ const Profile = () => {
     }, [user]);
 
     // Fetch user projects
+    // Update in Profile.js - fetchProjects function
     const fetchProjects = useCallback(async (targetUserId = null) => {
         try {
-            // If fetching another user's projects
-            if (targetUserId && targetUserId !== user?._id) {
-                const response = await projectService.getUserProjects(targetUserId);
-                setProjects(response.data || []);
-            } else {
-                // Fetching own projects
-                const response = await projectService.getProjects();
-                setProjects(response.data || []);
-            }
+            // Simply use getProjects for both cases
+            const response = await projectService.getProjects();
+            setProjects(response || []);
         } catch (error) {
             console.error('Error fetching projects:', error);
         }
     }, [user]);
 
     // Fetch mentorship data based on user role
+    // Update in Profile.js - fetchMentorshipData function
     const fetchMentorshipData = useCallback(async (targetUser = null) => {
         if (!targetUser) return;
 
         try {
             if (targetUser.role === 'alumni') {
-                // If viewing own profile or we have admin access
-                if (isOwnProfile || user?.role === 'admin' || user?.role === 'staff') {
-                    const response = await mentorshipService.getMentees(targetUser._id);
-                    setMentorshipData(response || []);
-                } else {
-                    // Public mentorship data for alumni
-                    const response = await mentorshipService.getPublicMentorshipData(targetUser._id);
-                    setMentorshipData(response || []);
+                if (isOwnProfile) {
+                    // Get current user's mentees
+                    const response = await mentorshipService.getMentees();
+                    setMentorshipData(response || {});
                 }
             } else if (targetUser.role === 'student') {
-                // If viewing own profile or we have admin access
-                if (isOwnProfile || user?.role === 'admin' || user?.role === 'staff') {
-                    const response = await mentorshipService.getRequests(targetUser._id);
-                    setMentorshipData(response.data || []);
-                } else {
-                    // Public mentorship data for students
-                    setMentorshipData([]);
-                }
+                const response = await mentorshipService.getRequests();
+                setMentorshipData(response || []);
             }
         } catch (error) {
             console.error('Error fetching mentorship data:', error);
@@ -208,9 +196,41 @@ const Profile = () => {
         }
     }, []);
 
-    // Initialize all data on component mount
+    // Function to update the profile data with a new avatar URL
+    const updateProfileAvatar = useCallback((avatarUrl) => {
+        setProfileData(prevData => ({
+            ...prevData,
+            photo_url: avatarUrl
+        }));
+    }, []);
+
+    // Handle avatar selection
+    const handleAvatarSelect = (avatarId) => {
+        if (!isOwnProfile || !user) return;
+
+        // Get the avatar URL based on selection
+        const avatarUrl = avatarService.getAvatarUrl(
+            avatarId,
+            profileData.role,
+            userGender
+        );
+
+
+        console.log("Selected avatar ID:", avatarId);
+        console.log("Generated avatar URL:", avatarUrl);
+        // Update profile with new avatar URL
+        updateProfileAvatar(avatarUrl);
+
+        // Save the selection to localStorage
+        avatarService.saveAvatarSelection(user.email, avatarId);
+
+        setShowAvatarModal(false);
+    };
+
+    // Simplified data fetching in useEffect
     useEffect(() => {
         const fetchAllData = async () => {
+            setLoading(true);
             if (!user) {
                 setLoading(false);
                 return;
@@ -219,53 +239,45 @@ const Profile = () => {
             try {
                 let userData;
 
+
+
                 // Check if we're viewing our own profile or someone else's
                 if (!userId || userId === user._id) {
                     setIsOwnProfile(true);
+                    // Use userProfileService instead of authService
                     userData = await userProfileService.getMyProfile();
                 } else {
                     setIsOwnProfile(false);
                     userData = await userProfileService.getUserProfile(userId);
-
-                    // Check connection status with this user
-                    fetchConnectionStatus(userId);
                 }
 
                 setProfileData(userData);
+                console.log("Profile data: ", userData);
 
-                // Initialize edit form with current data (if it's own profile)
-                if (isOwnProfile) {
-                    setEditForm({
-                        name: userData.name || '',
-                        dept: userData.dept || '',
-                        regno: userData.regno || '',
-                        batch: userData.batch || '',
-                        bio: userData.bio || '',
-                        linkedin: userData.linkedin || '',
-                        github: userData.github || '',
-                        skills: userData.skills ? userData.skills.join(', ') : ''
-                    });
+                // Initialize other data in parallel based on user role
+                const promises = [];
+                promises.push(fetchConnections(userId));
+                promises.push(isOwnProfile ? fetchConnectionRequests() : null);
+                promises.push(fetchUserConnections(userId));
+                promises.push(fetchProjects(userId));
+
+                if (userData.role === 'student') {
+                    promises.push(fetchMentorshipData(userData));
+                } else if (userData.role === 'alumni') {
+                    promises.push(fetchMentorshipData(userData));
+                    promises.push(fetchJobProfile(userId));
                 }
 
-                // Fetch additional data in parallel
-                await Promise.all([
-                    fetchConnections(userId),
-                    isOwnProfile ? fetchConnectionRequests() : null,
-                    fetchUserConnections(userId),
-                    fetchProjects(userId),
-                    fetchMentorshipData(userData),
-                    userData.role === 'alumni' ? fetchJobProfile(userId) : null
-                ]);
+                await Promise.all(promises.filter(p => p !== null));
             } catch (err) {
-                setError(err.response?.data?.message || 'Failed to load profile');
+                setError('Failed to load profile data');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchAllData();
-    }, [user, userId, fetchConnections, fetchConnectionRequests, fetchUserConnections,
-        fetchProjects, fetchMentorshipData, fetchJobProfile, fetchConnectionStatus, isOwnProfile]);
+        if (user) fetchAllData();
+    }, [user, userId]);
 
     // Handle form submission for profile editing
     const handleEditSubmit = async (e) => {
@@ -283,46 +295,14 @@ const Profile = () => {
 
             // Refresh profile data
             const updatedData = await userProfileService.getMyProfile();
+
+            // Keep the avatar URL
+            updatedData.photo_url = profileData.photo_url;
+
             setProfileData(updatedData);
         } catch (error) {
             console.error('Error updating profile:', error);
             setError('Failed to update profile. Please try again.');
-        }
-    };
-
-    // Handle profile photo upload
-    const handlePhotoChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setPhotoFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPhotoPreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handlePhotoUpload = async () => {
-        if (!photoFile) return;
-
-        try {
-            setUploadingPhoto(true);
-            const formData = new FormData();
-            formData.append('photo', photoFile);
-            await userProfileService.uploadPhoto(formData);
-
-            // Refresh profile data
-            const updatedData = await userProfileService.getMyProfile();
-            setProfileData(updatedData);
-            setShowPhotoModal(false);
-            setPhotoFile(null);
-            setPhotoPreview(null);
-        } catch (error) {
-            console.error('Error uploading photo:', error);
-            setError('Failed to upload photo. Please try again.');
-        } finally {
-            setUploadingPhoto(false);
         }
     };
 
@@ -551,7 +531,7 @@ const Profile = () => {
                                         <div className="d-flex align-items-center">
                                             <div className="connection-avatar me-2">
                                                 <img
-                                                    src={connection.user.photo_url || "https://via.placeholder.com/40"}
+                                                    src={connection.user.photo_url || "/img/default.png"}
                                                     alt={connection.user.name}
                                                     className="rounded-circle"
                                                     width="40"
@@ -619,7 +599,7 @@ const Profile = () => {
                             connectionStatus={connectionStatus}
                             userRole={user?.role}
                             onEditClick={() => setShowEditModal(true)}
-                            onPhotoClick={() => setShowPhotoModal(true)}
+                            onPhotoClick={() => setShowAvatarModal(true)} // Open avatar modal instead
                             onSendConnectionRequest={handleSendConnectionRequest}
                         />
 
@@ -736,19 +716,15 @@ const Profile = () => {
                         userRole={userRole}
                     />
 
-                    {/* Photo Upload Modal */}
-                    <PhotoUploadModal
-                        show={showPhotoModal}
-                        onHide={() => {
-                            setShowPhotoModal(false);
-                            setPhotoPreview(null);
-                            setPhotoFile(null);
-                        }}
-                        photoPreview={photoPreview}
-                        currentPhoto={profileData.photo_url}
-                        onPhotoChange={handlePhotoChange}
-                        onPhotoUpload={handlePhotoUpload}
-                        uploading={uploadingPhoto}
+                    {/* Avatar Selection Modal */}
+                    <AvatarSelectionModal
+                        show={showAvatarModal}
+                        onHide={() => setShowAvatarModal(false)}
+                        selectedAvatar={selectedAvatar}
+                        setSelectedAvatar={setSelectedAvatar}
+                        userRole={userRole}
+                        userGender={userGender}
+                        onAvatarSelect={handleAvatarSelect}
                     />
 
                     {/* Job Profile Modal - Only for Alumni */}

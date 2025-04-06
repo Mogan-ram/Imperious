@@ -45,19 +45,13 @@ export const newsEventsService = {
     },
 
     /**
-     * Create a news/event with FormData
+     * Create a news/event
      * 
-     * @param {FormData} data - Form data containing news/event details
+     * @param {object} data - News/event data
      * @returns {Promise} API response
      */
     create: (data) => {
-        // Important: Do not manually set Content-Type header for FormData
-        // Let the browser automatically set the correct boundary value
-        return axios.post(BASE_URL, data, {
-            headers: {
-                // Do NOT set Content-Type here - let the browser handle it
-            }
-        });
+        return axios.post(BASE_URL, data);
     },
 
     /**

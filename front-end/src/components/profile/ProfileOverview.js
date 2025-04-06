@@ -113,45 +113,61 @@ const BioCard = ({ bio }) => (
 );
 
 // Role-Specific Section for Alumni
-const AlumniOverviewCard = ({ jobProfile, mentorshipData, onJobProfileClick }) => (
-    <Card className="mb-4">
-        <Card.Header>
-            <h5 className="mb-0">Mentorship Activity</h5>
-        </Card.Header>
-        <Card.Body>
-            <p><strong>Current Mentees:</strong> {mentorshipData.length}</p>
-            <p><strong>Projects Supervised:</strong> {
-                Array.from(new Set(mentorshipData.map(m => m._id))).length
-            }</p>
+// Role-Specific Section for Alumni
+const AlumniOverviewCard = ({ jobProfile, mentorshipData, onJobProfileClick }) => {
+    // Check if mentorshipData is an object with mentees or project_groups property
+    const mentees = Array.isArray(mentorshipData)
+        ? mentorshipData
+        : (mentorshipData?.mentees || mentorshipData?.project_groups || []);
 
-            {jobProfile ? (
-                <div className="mt-3">
-                    <h6>Current Position</h6>
-                    <p className="mb-1">
-                        <strong>{jobProfile.job_title}</strong> at {jobProfile.company}
-                    </p>
-                    {jobProfile.location && (
-                        <p className="mb-1 text-muted">
-                            <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
-                            {jobProfile.location}
+    // Get the count of mentees
+    const menteesCount = Array.isArray(mentorshipData)
+        ? mentorshipData.length
+        : (mentorshipData?.mentees_count || mentorshipData?.mentees?.length || 0);
+
+    // Get the number of unique projects
+    const uniqueProjects = Array.isArray(mentorshipData)
+        ? Array.from(new Set(mentorshipData.map(m => m._id))).length
+        : (mentorshipData?.project_groups?.length || 0);
+
+    return (
+        <Card className="mb-4">
+            <Card.Header>
+                <h5 className="mb-0">Mentorship Activity</h5>
+            </Card.Header>
+            <Card.Body>
+                <p><strong>Current Mentees:</strong> {menteesCount}</p>
+                <p><strong>Projects Supervised:</strong> {uniqueProjects}</p>
+
+                {jobProfile ? (
+                    <div className="mt-3">
+                        <h6>Current Position</h6>
+                        <p className="mb-1">
+                            <strong>{jobProfile.job_title}</strong> at {jobProfile.company}
                         </p>
-                    )}
-                </div>
-            ) : (
-                <div className="mt-3">
-                    <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={onJobProfileClick}
-                    >
-                        <FontAwesomeIcon icon={faBriefcase} className="me-1" />
-                        Add Job Profile
-                    </Button>
-                </div>
-            )}
-        </Card.Body>
-    </Card>
-);
+                        {jobProfile.location && (
+                            <p className="mb-1 text-muted">
+                                <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
+                                {jobProfile.location}
+                            </p>
+                        )}
+                    </div>
+                ) : (
+                    <div className="mt-3">
+                        <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={onJobProfileClick}
+                        >
+                            <FontAwesomeIcon icon={faBriefcase} className="me-1" />
+                            Add Job Profile
+                        </Button>
+                    </div>
+                )}
+            </Card.Body>
+        </Card>
+    );
+};
 
 // Role-Specific Section for Students
 const StudentOverviewCard = ({ projects, mentorshipData }) => (
@@ -207,7 +223,7 @@ const ProfileOverview = ({
         <Row>
             <Col md={4}>
                 <PersonalInfoCard profileData={profileData} />
-                <SkillsCard skills={profileData.skills} />
+                <SkillsCard skills={profileData.skills || []} />
                 <SocialLinksCard
                     linkedin={profileData.linkedin}
                     github={profileData.github}

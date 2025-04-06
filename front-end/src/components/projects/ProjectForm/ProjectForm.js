@@ -170,6 +170,10 @@ const ProjectForm = () => {
                     setError('Project abstract is required');
                     return false;
                 }
+                if (!project.githubLink.trim()) {
+                    setError('GitHub repository link is required');
+                    return false;
+                }
                 break;
             case 2:
                 if (project.techStack.length === 0) {
@@ -329,7 +333,7 @@ const ProjectForm = () => {
                                 </Form.Group>
 
                                 <Form.Group className="mb-4">
-                                    <Form.Label className="fw-bold">GitHub Repository Link (Optional)</Form.Label>
+                                    <Form.Label className="fw-bold">GitHub Repository Link <span className="text-danger">*</span></Form.Label>
                                     <InputGroup className="mb-3">
                                         <InputGroup.Text id="github-addon" className="bg-white">
                                             <FaGithub />
@@ -341,10 +345,11 @@ const ProjectForm = () => {
                                             onChange={handleChange}
                                             placeholder="https://github.com/username/repo"
                                             aria-describedby="github-addon"
+                                            required
                                         />
                                     </InputGroup>
                                     <Form.Text className="text-muted">
-                                        Add your project repository link
+                                        Project repository link is required
                                     </Form.Text>
                                 </Form.Group>
                             </Form>
@@ -511,14 +516,12 @@ const ProjectForm = () => {
                                         <Col md={6}>
                                             <p><strong>Title:</strong> {project.title}</p>
                                             <p><strong>Abstract:</strong> {project.abstract}</p>
-                                            {project.githubLink && (
-                                                <p>
-                                                    <strong>GitHub:</strong>{' '}
-                                                    <a href={project.githubLink} target="_blank" rel="noopener noreferrer">
-                                                        {project.githubLink}
-                                                    </a>
-                                                </p>
-                                            )}
+                                            <p>
+                                                <strong>GitHub:</strong>{' '}
+                                                <a href={project.githubLink} target="_blank" rel="noopener noreferrer">
+                                                    {project.githubLink}
+                                                </a>
+                                            </p>
                                         </Col>
                                         <Col md={6}>
                                             <p><strong>Technologies:</strong></p>

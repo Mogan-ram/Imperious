@@ -307,7 +307,7 @@ const MessagingPage = () => {
                                 >
                                     <div className="position-relative">
                                         <img
-                                            src={otherParticipant.avatar || "https://via.placeholder.com/50"}
+                                            src={otherParticipant.photo_url || "/img/default.png"}
                                             alt={otherParticipant.name}
                                             className="conversation-avatar"
                                         />
@@ -390,7 +390,7 @@ const MessagingPage = () => {
                                         >
                                             {!isCurrentUser && (
                                                 <img
-                                                    src={message.sender_details?.avatar || "https://via.placeholder.com/36"}
+                                                    src={message.sender_details?.avatar || "/img/default.png"}
                                                     alt="avatar"
                                                     className="message-avatar"
                                                 />
@@ -411,7 +411,7 @@ const MessagingPage = () => {
 
                                             {isCurrentUser && (
                                                 <img
-                                                    src={user.avatar || "https://via.placeholder.com/36"}
+                                                    src={user.avatar || "/img/default.png"}
                                                     alt="avatar"
                                                     className="message-avatar"
                                                 />

@@ -14,6 +14,7 @@ export const userProfileService = {
     },
 
     // Get the current user's profile
+    // Checking in userProfile.js
     getMyProfile: async () => {
         try {
             const response = await axios.get('/profile');

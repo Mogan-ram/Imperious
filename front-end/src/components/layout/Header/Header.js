@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Navbar, Nav, Container, NavDropdown, Button } from 'react-bootstrap';
 import {
-    FaUserCircle, FaFolder, FaPlus, FaProjectDiagram, FaBriefcase, FaHandshake,
+    FaFolder, FaPlus, FaProjectDiagram, FaBriefcase, FaHandshake,
     FaHome, FaNewspaper, FaCalendarAlt, FaChartLine, FaUserGraduate,
     FaUserPlus, FaEnvelope, FaSignOutAlt, FaUser
 } from 'react-icons/fa';
@@ -49,7 +49,7 @@ const Header = () => {
         }
     };
 
-    // Check if a path is active
+    // Check if a path is active - Using exact matching for paths
     const isActive = (path) => {
         if (path === '/') {
             return location.pathname === path;
@@ -77,7 +77,7 @@ const Header = () => {
                             <FaProjectDiagram className="nav-icon" />Projects
                         </span>}
                         id="projects-dropdown"
-                        className="nav-item"
+                        className={`nav-item ${isActive('/projects') ? 'active' : ''}`}
                     >
                         <NavDropdown.Item as={Link} to="/projects/my-projects" onClick={closeNavbar}>
                             <FaFolder className="dropdown-icon" />My Projects
@@ -112,7 +112,7 @@ const Header = () => {
                             <FaHandshake className="nav-icon" />Mentorship
                         </span>}
                         id="mentorship-dropdown"
-                        className="nav-item"
+                        className={`nav-item ${isActive('/alumni/mentorship') ? 'active' : ''}`}
                     >
                         <NavDropdown.Item as={Link} to="/alumni/mentorship" onClick={closeNavbar}>
                             <FaHandshake className="dropdown-icon" />Mentorship Requests
@@ -127,7 +127,7 @@ const Header = () => {
                             <FaBriefcase className="nav-icon" />Jobs
                         </span>}
                         id="jobs-dropdown"
-                        className="nav-item"
+                        className={`nav-item ${isActive('/jobs') ? 'active' : ''}`}
                     >
                         <NavDropdown.Item as={Link} to="/jobs" onClick={closeNavbar}>
                             <FaBriefcase className="dropdown-icon" />View Jobs
@@ -162,17 +162,17 @@ const Header = () => {
             expanded={expanded}
             onToggle={setExpanded}
         >
-            <Container>
-                {/* Brand/Logo - Left aligned */}
+            <Container fluid>
+                {/* Brand/Logo - Left aligned with smaller size */}
                 <Navbar.Brand as={Link} to="/" className="navbar-brand">
-                    Imperious
+                    <img src="/logo.png" alt="Logo" className="logo" />
                 </Navbar.Brand>
 
                 <Navbar.Toggle aria-controls="main-navbar" />
 
                 <Navbar.Collapse id="main-navbar">
-                    {/* Center-aligned nav items */}
-                    <Nav className="mx-auto main-nav">
+                    {/* Center-aligned nav items moved more to the left */}
+                    <Nav className="me-auto main-nav">
                         <Nav.Link
                             as={Link}
                             to="/"
@@ -209,7 +209,7 @@ const Header = () => {
                     </Nav>
 
                     {/* Right-aligned user profile */}
-                    <Nav className="ms-auto">
+                    <Nav>
                         {user ? (
                             <NavDropdown
                                 title={

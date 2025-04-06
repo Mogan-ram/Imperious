@@ -1,6 +1,6 @@
 // src/components/news-events/NewsEventForm/NewsEventForm.js
 import React, { useState, useEffect } from "react";
-import { Form, Button, Container, Card, Image, Row, Col } from 'react-bootstrap';
+import { Form, Button, Container, Card, Row, Col } from 'react-bootstrap';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { newsEventsService } from '../../../services/api/news-events';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -25,13 +25,7 @@ const NewsEventForm = () => {
         registerLink: "",
     });
 
-    const [image, setImage] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-
-    // File Size Limit
-    const MAX_FILE_SIZE_MB = 5; // 5MB limit
-    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
     useEffect(() => {
         // Set type from URL parameter if present
@@ -70,17 +64,6 @@ const NewsEventForm = () => {
                     location: eventData.location || "",
                     registerLink: eventData.register_link || "",
                 });
-
-                // Set preview URL if image exists
-                if (eventData.image_url) {
-                    // Check if the URL already starts with http, if not add the base
-                    const imageUrl = eventData.image_url.startsWith('http')
-                        ? eventData.image_url
-                        : `http://localhost:5000${eventData.image_url}`;
-
-                    setPreviewUrl(imageUrl);
-                    console.log("Set preview URL:", imageUrl);
-                }
             }
         } catch (error) {
             console.error("Error fetching news/event:", error);
@@ -152,31 +135,22 @@ const NewsEventForm = () => {
                 }
             } else {
                 // Handle create
-                const formDataObj = new FormData();
-                formDataObj.append("title", formData.title);
-                formDataObj.append("description", formData.description);
-                formDataObj.append("type", formData.type);
+                const data = {
+                    title: formData.title,
+                    description: formData.description,
+                    type: formData.type
+                };
 
                 if (formData.type === "event") {
-                    formDataObj.append("event_date", formData.eventDate);
-                    formDataObj.append("event_time", formData.eventTime);
-                    formDataObj.append("location", formData.location);
-                    formDataObj.append("register_link", formData.registerLink);
+                    data.event_date = formData.eventDate;
+                    data.event_time = formData.eventTime;
+                    data.location = formData.location;
+                    data.register_link = formData.registerLink;
                 }
 
-                // Handle image
-                if (image) {
-                    if (image.size > MAX_FILE_SIZE_BYTES) {
-                        toast.error(`File size exceeds the limit of ${MAX_FILE_SIZE_MB}MB`);
-                        setIsLoading(false);
-                        return;
-                    }
-                    formDataObj.append("image", image);
-                }
+                const response = await newsEventsService.createNewsEvent(data);
 
-                const response = await newsEventsService.create(formDataObj);
-
-                if (response.status === 201) {
+                if (response) {
                     toast.success("News/Event created successfully!");
                     navigate(`/${formData.type === 'news' ? 'news' : 'events'}`);
                 }
@@ -186,29 +160,6 @@ const NewsEventForm = () => {
             toast.error(error.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} news/event`);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (file.size > MAX_FILE_SIZE_BYTES) {
-                toast.error(`File size exceeds the limit of ${MAX_FILE_SIZE_MB}MB`);
-                e.target.value = null; // Clear the file input
-                setImage(null);
-                setPreviewUrl(null);  // Clear preview
-                return;
-            }
-            setImage(file);
-            // Create a preview URL
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreviewUrl(reader.result);
-            }
-            reader.readAsDataURL(file);
-        } else {
-            setImage(null);
-            setPreviewUrl(null);
         }
     };
 
@@ -336,38 +287,6 @@ const NewsEventForm = () => {
                                     </Form.Group>
                                 </>
                             )}
-
-                            <Form.Group className="mb-3">
-                                <Form.Label>Upload Image (optional)</Form.Label>
-                                <Form.Control
-                                    type="file"
-                                    onChange={handleImageChange}
-                                    accept="image/*"
-                                    disabled={isEditing} // Disable image upload when editing
-                                />
-                                {isEditing && (
-                                    <Form.Text className="text-muted">
-                                        Image cannot be changed when editing.
-                                    </Form.Text>
-                                )}
-
-                                {previewUrl && (
-                                    <div className="mt-2 mb-3">
-                                        <p className="mb-1">Image Preview:</p>
-                                        <Image
-                                            src={previewUrl}
-                                            alt="Preview"
-                                            fluid
-                                            thumbnail
-                                            style={{ maxWidth: '200px' }}
-                                            onError={(e) => {
-                                                console.log('Preview image error:', e);
-                                                e.target.src = 'https://via.placeholder.com/200x200?text=Preview';
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </Form.Group>
 
                             <div className="d-flex justify-content-between">
                                 <Button variant="secondary" onClick={() => navigate(-1)}>

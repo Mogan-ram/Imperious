@@ -7,6 +7,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { jobService } from '../../services/api/jobs';
 import { useAuth } from '../../contexts/AuthContext';
 import './joblist.css';
+import Footer from '../layout/Footer/Footer';
 
 const JobList = () => {
     const { user } = useAuth();
@@ -124,7 +125,7 @@ const JobList = () => {
     }, [currentPage, jobTypeFilter, sortBy, sortOrder]);
 
     return (
-        <Container className="job-list-container py-5">
+        <><Container className="job-list-container py-5">
             <Row className="mb-4">
                 <Col>
                     <h1 className="job-list-title">Find Your Next Opportunity</h1>
@@ -145,8 +146,7 @@ const JobList = () => {
                                                 type="text"
                                                 placeholder="Search jobs by title, company, or skills"
                                                 value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                            />
+                                                onChange={(e) => setSearchTerm(e.target.value)} />
                                         </InputGroup>
                                     </Col>
                                     <Col lg={4} md={8} className="mb-3 mb-lg-0">
@@ -156,8 +156,7 @@ const JobList = () => {
                                                 type="text"
                                                 placeholder="Filter by location"
                                                 value={locationFilter}
-                                                onChange={(e) => setLocationFilter(e.target.value)}
-                                            />
+                                                onChange={(e) => setLocationFilter(e.target.value)} />
                                         </InputGroup>
                                     </Col>
                                     <Col lg={2} md={4}>
@@ -380,7 +379,7 @@ const JobList = () => {
                     )}
                 </>
             )}
-        </Container>
+        </Container><><Footer /></></>
     );
 };
 

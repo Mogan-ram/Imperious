@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { FaCheck, FaTimes, FaEnvelope, FaEye } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import './Collaborations.css';
+import Footer from '../layout/Footer/Footer';
 
 const StatusCard = ({ request }) => {
     const [showDetails, setShowDetails] = useState(false);
@@ -517,7 +518,7 @@ const Collaborations = () => {
     };
 
     return (
-        <Container className="py-4">
+        <><Container className="py-4">
             <h2 className="mb-4">Project Collaborations</h2>
             <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4">
                 <Tab eventKey="explore" title="Explore">
@@ -626,8 +627,7 @@ const Collaborations = () => {
                                     <CollaboratedProjectCard
                                         key={project._id || `collab-project-${index}`}
                                         project={project}
-                                        onViewProject={handleViewProject}
-                                    />
+                                        onViewProject={handleViewProject} />
                                 ))
                             ) : (
                                 <div className="text-center py-5">
@@ -661,8 +661,7 @@ const Collaborations = () => {
                                             request={request}
                                             onStatusUpdate={handleStatusUpdate}
                                             onMessageSent={loadData}
-                                            onViewProject={handleViewProject}
-                                        />
+                                            onViewProject={handleViewProject} />
                                     ))
                                 ) : (
                                     <div className="text-center py-5">
@@ -674,8 +673,7 @@ const Collaborations = () => {
                                 sentRequests.map((request, index) => (
                                     <StatusCard
                                         key={request._id || `status-${index}`}
-                                        request={request}
-                                    />
+                                        request={request} />
                                 ))
                             ) : (
                                 <div className="text-center py-5">
@@ -687,7 +685,9 @@ const Collaborations = () => {
                     </Card>
                 </Tab>
             </Tabs>
-        </Container>
+        </Container><>
+                <Footer />
+            </></>
     );
 };
 

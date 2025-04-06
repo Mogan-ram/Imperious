@@ -285,14 +285,3 @@ def handle_single_news_event(id):
                 ),
                 500,
             )
-
-
-@news_events_bp.route("/uploads/news_events/<filename>")
-def serve_news_event_file(filename):
-    try:
-        return send_from_directory(
-            current_app.config["NEWS_EVENTS_UPLOAD_FOLDER"], filename
-        )
-    except Exception as e:
-        current_app.logger.error(f"Error serving file {filename}: {str(e)}")
-        return jsonify({"message": "File not found"}), 404

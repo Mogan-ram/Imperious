@@ -1,54 +1,59 @@
-/* FeedCreate.css */
+/* FeedCreate.css - Enhanced version */
 
 .create-feed-card {
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    margin-bottom: 24px;
+    background-color: white;
 }
 
 .post-tabs {
     display: flex;
     border-bottom: 1px solid #f0f0f0;
-    margin-bottom: 15px;
+    margin-bottom: 18px;
+    background-color: #f8f9fa;
 }
 
 .post-tab {
     flex: 1;
     text-align: center;
-    padding: 12px 5px;
+    padding: 16px 5px;
     cursor: pointer;
     color: #6c757d;
     font-weight: 500;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    transition: all 0.2s ease;
+    gap: 10px;
+    transition: all 0.3s ease;
 }
 
 .post-tab:hover {
     color: #4e73df;
-    background-color: #f8f9fa;
+    background-color: rgba(78, 115, 223, 0.05);
 }
 
 .post-tab.active {
     color: #4e73df;
-    border-bottom: 2px solid #4e73df;
+    border-bottom: 3px solid #4e73df;
+    background-color: white;
 }
 
 .tab-icon {
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .post-author {
     display: flex;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
 }
 
 .author-avatar {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     background-color: #4e73df;
     color: white;
     font-weight: bold;
@@ -56,8 +61,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    margin-right: 12px;
+    font-size: 18px;
+    margin-right: 14px;
+    box-shadow: 0 2px 8px rgba(78, 115, 223, 0.25);
+    border: 2px solid white;
 }
 
 .create-post-textarea {
@@ -65,89 +72,94 @@
     resize: none;
     font-size: 16px;
     background-color: #f8f9fa;
-    border-radius: 10px;
-    padding: 15px;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+    color: #2c3e50;
 }
 
 .create-post-textarea:focus {
-    box-shadow: none;
+    box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.15);
     background-color: #f8f9fa;
 }
 
 .post-actions {
     align-items: center;
+    margin-top: 16px;
 }
 
 .post-attachments {
     display: flex;
-    gap: 10px;
+    gap: 12px;
 }
 
 .attachment-btn {
     color: #6c757d;
-    padding: 6px;
+    padding: 8px;
     border-radius: 50%;
+    transition: all 0.2s ease;
 }
 
 .attachment-btn:hover {
     background-color: #f0f0f0;
     color: #4e73df;
+    transform: scale(1.1);
 }
 
 .post-submit-btn {
-    border-radius: 20px;
-    padding: 6px 20px;
-    font-weight: 500;
-}
-
-.upload-placeholder {
-    border: 2px dashed #ced4da;
-    border-radius: 10px;
-    padding: 30px;
-    text-align: center;
-    cursor: pointer;
-    background-color: #f8f9fa;
-    transition: all 0.2s ease;
-}
-
-.upload-placeholder:hover {
+    border-radius: 24px;
+    padding: 8px 24px;
+    font-weight: 600;
+    box-shadow: 0 4px 6px rgba(78, 115, 223, 0.2);
+    transition: all 0.3s ease;
+    background-color: #4e73df;
     border-color: #4e73df;
-    background-color: #f0f4ff;
 }
 
-.upload-icon {
-    font-size: 30px;
-    color: #6c757d;
-    margin-bottom: 10px;
+.post-submit-btn:hover:not(:disabled) {
+    background-color: #3a5dce;
+    border-color: #3a5dce;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(78, 115, 223, 0.3);
 }
 
-.upload-text {
-    margin-bottom: 0;
-    color: #6c757d;
+.post-submit-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(78, 115, 223, 0.2);
+}
+
+.post-submit-btn:disabled {
+    background-color: #b7c3e6;
+    border-color: #b7c3e6;
+    cursor: not-allowed;
 }
 
 .link-input {
     background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 12px 15px;
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: all 0.3s ease;
+    margin-top: 12px;
+    border: 1px solid #dee2e6;
 }
 
 .link-input:focus {
-    box-shadow: none;
+    box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.15);
     border-color: #4e73df;
 }
 
+/* Responsive adjustments */
 @media (max-width: 576px) {
     .tab-label {
         display: none;
     }
 
     .post-tab {
-        padding: 12px 5px;
+        padding: 14px 5px;
     }
 
     .tab-icon {
-        font-size: 18px;
+        font-size: 20px;
     }
 
     .post-actions {
@@ -162,5 +174,11 @@
 
     .post-submit-btn {
         width: 100%;
+    }
+
+    .author-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
     }
 }

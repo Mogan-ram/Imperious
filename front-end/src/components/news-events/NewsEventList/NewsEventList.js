@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Pagination, Button, Badge } from 'react-bootstrap';
-import { useLocation, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { newsEventsService } from '../../../services/api/news-events';
 import { useAuth } from '../../../contexts/AuthContext';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { FaTrash } from 'react-icons/fa';
+import Footer from '../../layout/Footer/Footer';
 
 const NewsEventList = ({ type }) => {
     const [items, setItems] = useState([]);
@@ -100,7 +100,7 @@ const NewsEventList = ({ type }) => {
 
 
     return (
-        <div className="container py-4">
+        <><div className="container py-4">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h2>{type === 'news' ? 'News' : 'Events'}</h2>
                 {user && ['staff', 'alumni'].includes(user.role.toLowerCase()) && (
@@ -113,9 +113,6 @@ const NewsEventList = ({ type }) => {
                 {items.map((item) => (
                     <div key={item._id} className="col-12">
                         <Card className="mb-3">
-                            {item.image_url && (
-                                <Card.Img variant="top" src={`/uploads/${item.image_url}`} alt={item.title} />
-                            )}
                             <Card.Body>
                                 <Card.Title>{item.title}</Card.Title>
                                 {/* Always show News/Event based on item.type */}
@@ -178,7 +175,7 @@ const NewsEventList = ({ type }) => {
                     </Pagination>
                 </div>
             )}
-        </div>
+        </div><Footer /></>
     );
 };
 
