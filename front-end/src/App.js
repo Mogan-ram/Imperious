@@ -34,6 +34,8 @@ const AlumniMentorship = React.lazy(() => import('./components/mentorship/Alumni
 const MyMentees = React.lazy(() => import('./components/mentorship/MyMentees'));
 const AnalyticsDashboard = React.lazy(() => import('./components/analytics/AnalyticsDashboard'));
 const ProjectDetail = React.lazy(() => import('./components/projects/ProjectDetail/ProjectDetail'));
+const NewsDetail = React.lazy(() => import('./components/news-events/NewsDetail/NewsDetail'));
+
 
 function App() {
   const location = useLocation();
@@ -102,6 +104,13 @@ function App() {
               <ProtectedRoute>
                 <Suspense fallback={<LoadingSpinner />}>
                   <NewsEventForm />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+            <Route path="/news/:id" element={
+              <ProtectedRoute>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <NewsDetail />
                 </Suspense>
               </ProtectedRoute>
             } />

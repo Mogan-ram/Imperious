@@ -588,46 +588,47 @@ const ProjectForm = () => {
                     )}
                 </Card.Body>
 
-                <Card.Footer className="bg-white d-flex justify-content-between">
-                    {currentStep > 1 && (
-                        <Button
-                            variant="outline-secondary"
-                            onClick={handlePrevStep}
-                            className="d-flex align-items-center"
-                        >
-                            <FaArrowLeft className="me-1" /> Previous
-                        </Button>
-                    )}
+                <Card.Footer className="bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        {currentStep > 1 && (
+                            <Button
+                                variant="outline-secondary"
+                                onClick={handlePrevStep}
+                                className="d-flex align-items-center"
+                            >
+                                <FaArrowLeft className="me-1" /> Previous
+                            </Button>
+                        )}
+                    </div>
 
-                    <Button
-                        variant="outline-primary"
-                        onClick={() => handleSave(false)}
-                        className="ms-auto me-2"
-                        disabled={saveLoading}
-                    >
-                        <FaSave className="me-1" /> Save
-                        {saveLoading && <Spinner animation="border" size="sm" className="ms-2" />}
-                    </Button>
+                    <div className="d-flex gap-2">
+                        <Button
+                            variant="outline-danger"
+                            onClick={() => navigate('/projects')}
+                        >
+                            Cancel
+                        </Button>
 
-                    {currentStep < 4 ? (
-                        <Button
-                            variant="primary"
-                            onClick={handleNextStep}
-                            className="d-flex align-items-center"
-                        >
-                            Next <FaArrowRight className="ms-1" />
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="success"
-                            onClick={() => handleSave(true)}
-                            className="d-flex align-items-center"
-                            disabled={saveLoading}
-                        >
-                            <FaCheck className="me-1" /> Finish
-                            {saveLoading && <Spinner animation="border" size="sm" className="ms-2" />}
-                        </Button>
-                    )}
+                        {currentStep < 4 ? (
+                            <Button
+                                variant="primary"
+                                onClick={handleNextStep}
+                                className="d-flex align-items-center"
+                            >
+                                Next <FaArrowRight className="ms-1" />
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="success"
+                                onClick={() => handleSave(true)}
+                                className="d-flex align-items-center"
+                                disabled={saveLoading}
+                            >
+                                <FaCheck className="me-1" /> Finish
+                                {saveLoading && <Spinner animation="border" size="sm" className="ms-2" />}
+                            </Button>
+                        )}
+                    </div>
                 </Card.Footer>
             </Card>
         </Container>

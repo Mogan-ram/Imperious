@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import "./Signup.css";
 import { Form, Button } from 'react-bootstrap';
 import { useAuth } from '../../../contexts/AuthContext';
+import { Dropdown } from 'react-bootstrap';
 import { FaUserGraduate, FaUserTie, FaChalkboardTeacher, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const Signup = () => {
@@ -33,21 +34,19 @@ const Signup = () => {
             [name]: value
         }));
     };
-    //  const handleWillingnessChange = (e) => {
-    //   const { value, checked } = e.target;
-    //     if (checked) {
-    //         // Add to the array if checked
-    //         setWillingness(prev => [...prev, value]);
-    //   } else {
-    //        // Remove from the array if unchecked
-    //       setWillingness(prev => prev.filter(item => item !== value));
-    //    }
-    // };
+
 
     const handleWillingnessChange = (e) => {
         const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value)
         setWillingness(selectedOptions)
     }
+
+    const handleCheckboxChange = (e) => {
+        const { value, checked } = e.target;
+        setWillingness(prev =>
+            checked ? [...prev, value] : prev.filter(item => item !== value)
+        );
+    };
 
 
     const validateForm = () => {
@@ -63,11 +62,11 @@ const Signup = () => {
             }
 
             // Check staff ID format (e.g., CSE01)
-            const staffIdPattern = new RegExp(`^${formData.dept}\\d{2}$`);
-            if (!staffIdPattern.test(formData.staffId)) {
-                setError(`Staff ID should be in format: ${formData.dept}01`);
-                return false;
-            }
+            // const staffIdPattern = new RegExp(`^${formData.dept}\\d{2}$`);
+            // if (!staffIdPattern.test(formData.staffId)) {
+            //     setError(`Staff ID should be in format: ${formData.dept}01`);
+            //     return false;
+            // }
         }
 
         // Reg number validation for students and alumni
@@ -110,7 +109,7 @@ const Signup = () => {
                     : {
                         regno: formData.regno.trim().toUpperCase(),
                         batch: parseInt(formData.batch), // Ensure batch is an integer
-                        ...(role === 'alumni' && { willingness: willingness }) // Include willingness
+                        ...(role === 'alumni' && { willingness: willingness })
 
                     }
                 )
@@ -258,11 +257,11 @@ const Signup = () => {
                                     placeholder="Enter Staff ID "
                                     required
                                 />
-                                {formData.dept && (
+                                {/* {formData.dept && (
                                     <Form.Text className="text-muted">
                                         Format: {formData.dept}XX (e.g., {formData.dept}01)
                                     </Form.Text>
-                                )}
+                                )} */}
                             </div>
                         )}
                     </div>
@@ -333,22 +332,34 @@ const Signup = () => {
                     {role === 'alumni' && (
                         <Form.Group className="mb-3">
                             <Form.Label>Willing to:</Form.Label>
-                            <Form.Select
-                                name="willingness"
-                                multiple  // This is key for multi-select
-                                value={willingness} // Control the selected options
-                                onChange={handleWillingnessChange}
-                                className='form-select'
-                            >
-
-                                <option value="volunteering">Volunteering</option>
-                                <option value="mentorship">Mentorship</option>
-                                <option value="guest lecture">Guest Lecture</option>
-                                <option value="placement training">Placement Training</option>
-                                <option value='networking'>Networking Events</option>
-                                <option value='fundraising'>Fundraising</option>
-                                <option value='research'>Research Collaboration</option>
-                            </Form.Select>
+                            <Dropdown autoClose="outside">
+                                <Dropdown.Toggle as="div" className="custom-dropdown-toggle">
+                                    {willingness.length > 0 ? (
+                                        willingness.map(value => {
+                                            const option = willingnessOptions.find(opt => opt.id === value);
+                                            return (
+                                                <span className="badge bg-primary me-1" key={value}>
+                                                    {option ? option.label : value}
+                                                </span>
+                                            );
+                                        })
+                                    ) : 'Select options'}
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu className="w-100">
+                                    {willingnessOptions.map(option => (
+                                        <Dropdown.Item as="label" key={option.id} className="d-flex align-items-center">
+                                            <input
+                                                type="checkbox"
+                                                value={option.id}
+                                                checked={willingness.includes(option.id)}
+                                                onChange={handleCheckboxChange}
+                                                className="form-check-input me-2"
+                                            />
+                                            {option.label}
+                                        </Dropdown.Item>
+                                    ))}
+                                </Dropdown.Menu>
+                            </Dropdown>
                         </Form.Group>
                     )}
 

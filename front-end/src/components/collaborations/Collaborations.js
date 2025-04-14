@@ -383,52 +383,56 @@ const Collaborations = () => {
                     console.log('Collaborated response type:', typeof collabResponse);
                     console.log('Collaborated response:', collabResponse);
 
+                    let collabData = Array.isArray(collabResponse) ? collabResponse :
+                        collabResponse?.data && Array.isArray(collabResponse.data) ?
+                            collabResponse.data : [];
+
                     // Much more detailed handling for collaborated projects
-                    let collabData = [];
+                    // let collabData = [];
 
                     // Case 1: Response is direct array
-                    if (Array.isArray(collabResponse)) {
-                        console.log('Response is direct array');
-                        collabData = collabResponse;
-                    }
-                    // Case 2: Response has data property with array
-                    else if (collabResponse?.data && Array.isArray(collabResponse.data)) {
-                        console.log('Response has data property with array');
-                        collabData = collabResponse.data;
-                    }
-                    // Case 3: Response has projects property with array 
-                    else if (collabResponse?.projects && Array.isArray(collabResponse.projects)) {
-                        console.log('Response has projects property with array');
-                        collabData = collabResponse.projects;
-                    }
-                    // Case 4: For any other object response, try to extract known properties
-                    else if (typeof collabResponse === 'object' && collabResponse !== null) {
-                        console.log('Response is object, extracting properties');
-                        // Check for any property that might be an array of projects
-                        for (const key in collabResponse) {
-                            if (Array.isArray(collabResponse[key]) &&
-                                collabResponse[key].length > 0 &&
-                                collabResponse[key][0].title) {
-                                console.log(`Found possible projects array in '${key}' property`);
-                                collabData = collabResponse[key];
-                                break;
-                            }
-                        }
-                    }
+                    // if (Array.isArray(collabResponse)) {
+                    //     console.log('Response is direct array');
+                    //     collabData = collabResponse;
+                    // }
+                    // // Case 2: Response has data property with array
+                    // else if (collabResponse?.data && Array.isArray(collabResponse.data)) {
+                    //     console.log('Response has data property with array');
+                    //     collabData = collabResponse.data;
+                    // }
+                    // // Case 3: Response has projects property with array 
+                    // else if (collabResponse?.projects && Array.isArray(collabResponse.projects)) {
+                    //     console.log('Response has projects property with array');
+                    //     collabData = collabResponse.projects;
+                    // }
+                    // // Case 4: For any other object response, try to extract known properties
+                    // else if (typeof collabResponse === 'object' && collabResponse !== null) {
+                    //     console.log('Response is object, extracting properties');
+                    //     // Check for any property that might be an array of projects
+                    //     for (const key in collabResponse) {
+                    //         if (Array.isArray(collabResponse[key]) &&
+                    //             collabResponse[key].length > 0 &&
+                    //             collabResponse[key][0].title) {
+                    //             console.log(`Found possible projects array in '${key}' property`);
+                    //             collabData = collabResponse[key];
+                    //             break;
+                    //         }
+                    //     }
+                    // }
 
                     console.log('Final processed collaborated projects:', collabData);
 
                     // Extra check - if we find projects with collaboration flag
-                    if (collabData.length === 0 && Array.isArray(exploreData)) {
-                        console.log('No collaborated projects found, checking for collaboration flags in explore data');
-                        collabData = exploreData.filter(project =>
-                            project.isCollaborator === true ||
-                            (project.collaborators && project.collaborators.some(c =>
-                                c.id === user._id || c.email === user.email
-                            ))
-                        );
-                        console.log('Projects filtered by collaboration flags:', collabData);
-                    }
+                    // if (collabData.length === 0 && Array.isArray(exploreData)) {
+                    //     console.log('No collaborated projects found, checking for collaboration flags in explore data');
+                    //     collabData = exploreData.filter(project =>
+                    //         project.isCollaborator === true ||
+                    //         (project.collaborators && project.collaborators.some(c =>
+                    //             c.id === user._id || c.email === user.email
+                    //         ))
+                    //     );
+                    //     console.log('Projects filtered by collaboration flags:', collabData);
+                    // }
 
                     setCollaboratedProjects(collabData);
                     break;
