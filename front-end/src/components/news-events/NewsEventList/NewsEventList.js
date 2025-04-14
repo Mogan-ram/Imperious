@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Pagination, Button, Badge } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { newsEventsService } from '../../../services/api/news-events';
 import { useAuth } from '../../../contexts/AuthContext';
 import LoadingSpinner from '../../common/LoadingSpinner';
@@ -14,6 +14,7 @@ const NewsEventList = ({ type }) => {
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(false);
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const fetchItems = useCallback(async () => {
         try {
@@ -142,6 +143,13 @@ const NewsEventList = ({ type }) => {
                                         Posted on: {new Date(item.created_at).toLocaleDateString()}
                                     </small>
                                 )}
+                                <Button
+                                    variant="link"
+                                    className="p-0 read-more-link"
+                                    onClick={() => navigate(`/news-events/${item._id}`)}
+                                >
+                                    Read Full Article →
+                                </Button>
                             </Card.Body>
                             <Card.Footer className='d-flex justify-content-end'>
                                 {canDelete(item) && (
