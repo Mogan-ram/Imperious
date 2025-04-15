@@ -10,8 +10,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import {
-    FaComments, FaEnvelope, FaExternalLinkAlt, FaGithub,
-    FaCalendarAlt, FaClipboardList, FaChartLine, FaUser, FaCogs
+    FaComments, FaEnvelope, FaExternalLinkAlt,
+    FaClipboardList, FaUser,
 } from 'react-icons/fa';
 import messagingService from '../../services/api/messaging';
 import { Line } from 'react-chartjs-2';

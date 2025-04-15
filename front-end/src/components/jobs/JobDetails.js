@@ -1,6 +1,6 @@
 // components/jobs/JobDetails.js
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faLocationDot,
@@ -63,7 +63,7 @@ const JobDetails = () => {
     };
 
     // Fetch job details
-    const fetchJobDetails = async () => {
+    const fetchJobDetails = React.useCallback(async () => {
         setLoading(true);
         try {
             const data = await jobService.getJobById(id);
@@ -74,7 +74,7 @@ const JobDetails = () => {
             setError('Failed to load job details. Please try again later.');
             setLoading(false);
         }
-    };
+    }, [id]);
 
     // Handle job deletion
     const handleDeleteJob = async () => {
@@ -91,7 +91,7 @@ const JobDetails = () => {
 
     useEffect(() => {
         fetchJobDetails();
-    }, [id]);
+    }, [fetchJobDetails]);
 
     return (
         <><Container className="job-details-container py-5">

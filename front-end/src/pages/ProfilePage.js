@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Profile from '../components/profile/Profile';
 import Header from '../components/layout/Header/Header';
-import { useAuth } from '../contexts/AuthContext';
+// import { useAuth } from '../contexts/AuthContext';
 
 const ProfilePage = () => {
     const { userId } = useParams();
-    const { user } = useAuth();
+    // const { user } = useAuth();
 
     useEffect(() => {
         // Set page title

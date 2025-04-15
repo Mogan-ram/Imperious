@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    Container, Card, Row, Col, Button, Badge, ListGroup, Alert,
-    Spinner, Tabs, Tab, ProgressBar, OverlayTrigger, Tooltip
+    Container, Card, Row, Col, Button, Badge, Alert,
+    Spinner, Tabs, Tab, ProgressBar,
 } from 'react-bootstrap';
 import {
     FaGithub, FaUserCircle, FaEnvelope, FaArrowLeft, FaUsers,
-    FaCode, FaClock, FaCalendarAlt, FaEdit, FaTasks, FaUserAlt
+    FaCalendarAlt, FaEdit, FaTasks, FaUserAlt
 } from 'react-icons/fa';
 import { projectService } from '../../../services/api/projects';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -139,14 +139,14 @@ const ProjectDetail = () => {
         (projectCreator._id && projectCreator._id === user._id)
     );
 
-    const isCollaborator = user && project.collaborators &&
-        project.collaborators.some(c =>
-            c.id === user._id ||
-            c.id === user.email ||
-            c.email === user.email
-        );
+    // const isCollaborator = user && project.collaborators &&
+    //     project.collaborators.some(c =>
+    //         c.id === user._id ||
+    //         c.id === user.email ||
+    //         c.email === user.email
+    //     );
 
-    const isMentor = user && user.role === 'alumni';
+    // const isMentor = user && user.role === 'alumni';
 
     return (
         <Container className="py-4 project-detail">

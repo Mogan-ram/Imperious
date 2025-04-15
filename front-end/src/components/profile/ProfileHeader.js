@@ -11,7 +11,7 @@ import {
     faHandshake,
     faCheck,
     faClock,
-    faUserCircle
+
 } from '@fortawesome/free-solid-svg-icons';
 
 const ProfileHeader = ({

@@ -41,7 +41,7 @@ import {
 const Profile = () => {
     // Get userId from URL params
     const { userId } = useParams();
-    const navigate = useNavigate();
+
     const { user } = useAuth();
 
     // State management

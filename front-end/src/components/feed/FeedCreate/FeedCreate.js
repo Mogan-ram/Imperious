@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { feedService } from '../../../services/api/feed';
 import { Form, Button, Spinner, Card, Row, Col } from 'react-bootstrap';
 import { useAuth } from '../../../contexts/AuthContext';
-import { FaSmile, FaPaperPlane } from 'react-icons/fa';
+import { FaSmile } from 'react-icons/fa';
 import './FeedCreate.css';
 
 const FeedCreate = ({ onFeedCreated }) => {
