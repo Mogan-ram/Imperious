@@ -25,7 +25,7 @@ const MentorshipRequest = () => {
             try {
                 // Fetch user's projects
                 const projectsResponse = await projectService.getProjects();
-                console.log('Projects response:', projectsResponse);
+                // console.log('Projects response:', projectsResponse);
 
                 // Ensure we have an array of projects
                 const projectsData = Array.isArray(projectsResponse) ? projectsResponse :
@@ -36,7 +36,7 @@ const MentorshipRequest = () => {
 
                 // Fetch existing mentorship requests
                 const requestsResponse = await mentorshipService.getRequests();
-                console.log('Requests response:', requestsResponse);
+                // console.log('Requests response:', requestsResponse);
 
                 // Ensure we have an array of requests
                 const requestsData = Array.isArray(requestsResponse) ? requestsResponse :
@@ -47,7 +47,7 @@ const MentorshipRequest = () => {
 
                 // Fetch available mentors
                 const mentorsResponse = await mentorshipService.getMentors();
-                console.log('Mentors response:', mentorsResponse);
+                // console.log('Mentors response:', mentorsResponse);
 
                 // Ensure we have an array of mentors
                 const mentorsData = Array.isArray(mentorsResponse) ? mentorsResponse :

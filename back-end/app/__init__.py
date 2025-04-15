@@ -43,7 +43,7 @@ def create_app(config_name=None):
         app,
         resources={
             r"/*": {
-                "origins": ["http://localhost:3000"],
+                "origins": ["http://localhost:3000", "https://nex-um.netlify.app/"],
                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                 "allow_headers": ["Content-Type", "Authorization"],
                 "supports_credentials": True,
@@ -58,6 +58,11 @@ def create_app(config_name=None):
     app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")  # Set as env variable
     app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")  # Set as env variable
     app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER")
+
+    # backend connection test
+    @app.route("/")
+    def home():
+        return "Backend API is running!", 200
 
     mail = Mail()
     mail.init_app(app)

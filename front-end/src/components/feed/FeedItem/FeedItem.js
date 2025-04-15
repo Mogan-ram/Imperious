@@ -82,7 +82,7 @@ const FeedItem = ({ feed, onDelete, onLike, currentUser, onEdit }) => {
         if (!commentText.trim()) return;
 
         // In a real app, this would call an API to save the comment
-        console.log('Comment submitted:', commentText);
+        // console.log('Comment submitted:', commentText);
 
         // Clear input after submission
         setCommentText('');

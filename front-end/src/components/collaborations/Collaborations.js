@@ -345,17 +345,17 @@ const Collaborations = () => {
         try {
             switch (activeTab) {
                 case 'explore':
-                    console.log('Explore tab active, filters:', filters);
+                    // console.log('Explore tab active, filters:', filters);
                     const exploreResponse = await collaborationService.exploreProjects(filters);
-                    console.log('Explore response type:', typeof exploreResponse);
-                    console.log('Explore response:', exploreResponse);
+                    // console.log('Explore response type:', typeof exploreResponse);
+                    // console.log('Explore response:', exploreResponse);
 
                     // Handle different response structures
                     const exploreData = Array.isArray(exploreResponse) ? exploreResponse :
                         exploreResponse?.data && Array.isArray(exploreResponse.data) ?
                             exploreResponse.data : [];
 
-                    console.log('Processed explore data:', exploreData);
+                    // console.log('Processed explore data:', exploreData);
                     setProjects(exploreData);
 
                     // Extract unique departments and technologies for filters
@@ -378,10 +378,10 @@ const Collaborations = () => {
                     break;
 
                 case 'collaborated':
-                    console.log('Collaborated tab active');
+                    // console.log('Collaborated tab active');
                     const collabResponse = await collaborationService.getCollaboratedProjects();
-                    console.log('Collaborated response type:', typeof collabResponse);
-                    console.log('Collaborated response:', collabResponse);
+                    // console.log('Collaborated response type:', typeof collabResponse);
+                    // console.log('Collaborated response:', collabResponse);
 
                     let collabData = Array.isArray(collabResponse) ? collabResponse :
                         collabResponse?.data && Array.isArray(collabResponse.data) ?
@@ -440,26 +440,26 @@ const Collaborations = () => {
                 case 'requests':
                     // Handle nested tabs
                     if (activeRequestsTab === 'received') {
-                        console.log('Received requests tab active');
+                        // console.log('Received requests tab active');
                         const requestsResponse = await collaborationService.getRequests();
-                        console.log('Received requests response:', requestsResponse);
+                        // console.log('Received requests response:', requestsResponse);
 
                         const requestsData = Array.isArray(requestsResponse) ? requestsResponse :
                             requestsResponse?.data && Array.isArray(requestsResponse.data) ?
                                 requestsResponse.data : [];
 
-                        console.log('Processed received requests:', requestsData);
+                        // console.log('Processed received requests:', requestsData);
                         setReceivedRequests(requestsData);
                     } else {
-                        console.log('Sent requests tab active');
+                        // console.log('Sent requests tab active');
                         const statusResponse = await collaborationService.getOutgoingRequests();
-                        console.log('Sent requests response:', statusResponse);
+                        // console.log('Sent requests response:', statusResponse);
 
                         const statusData = Array.isArray(statusResponse) ? statusResponse :
                             statusResponse?.data && Array.isArray(statusResponse.data) ?
                                 statusResponse.data : [];
 
-                        console.log('Processed sent requests:', statusData);
+                        // console.log('Processed sent requests:', statusData);
                         setSentRequests(statusData);
                     }
                     break;
@@ -501,7 +501,7 @@ const Collaborations = () => {
             if (status === 'accepted') {
                 // Explicitly reload the collaborated projects tab data
                 const collabResponse = await collaborationService.getCollaboratedProjects();
-                console.log('Updated collaborated response after accept:', collabResponse);
+                // console.log('Updated collaborated response after accept:', collabResponse);
                 const collabData = Array.isArray(collabResponse) ? collabResponse :
                     collabResponse?.data && Array.isArray(collabResponse.data) ?
                         collabResponse.data : [];

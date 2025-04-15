@@ -145,7 +145,7 @@ const MyProjects = () => {
             setLoading(true);
             try {
                 const response = await projectService.getProjects();
-                console.log('Projects response:', response);
+                // console.log('Projects response:', response);
 
                 if (Array.isArray(response)) {
                     setProjects(response);

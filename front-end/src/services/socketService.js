@@ -12,7 +12,7 @@ class SocketService {
 
     connect(email) {
         if (!this.socket) {
-            console.log('Creating new socket connection');
+            // console.log('Creating new socket connection');
             this.socket = io('http://localhost:5000', {
                 transports: ['websocket'],
                 reconnection: true,
@@ -23,7 +23,7 @@ class SocketService {
             this.setupSocketListeners(email);
         } else if (email && this.connected) {
             // If already connected but email is provided/changed
-            console.log('Socket already connected, notifying with new email:', email);
+            // console.log('Socket already connected, notifying with new email:', email);
             this.socket.emit('login', { email });
         }
 
@@ -34,44 +34,44 @@ class SocketService {
         if (!this.socket) return;
 
         this.socket.on('connect', () => {
-            console.log('Socket connected!');
+            // console.log('Socket connected!');
             this.connected = true;
 
             // Notify server about login
             if (email) {
                 this.socket.emit('login', { email });
-                console.log('Sent login event with email:', email);
+                // console.log('Sent login event with email:', email);
             }
         });
 
         this.socket.on('disconnect', () => {
-            console.log('Socket disconnected');
+            // console.log('Socket disconnected');
             this.connected = false;
         });
 
         this.socket.on('connect_error', (err) => {
-            console.error('Connection error:', err);
+            // console.error('Connection error:', err);
         });
 
         this.socket.on('new_message', (message) => {
-            console.log('Received new_message event:', message);
+            // console.log('Received new_message event:', message);
             this.messageCallbacks.forEach(callback => callback(message));
         });
 
         this.socket.on('messages_read', (data) => {
-            console.log('Received messages_read event:', data);
+            // console.log('Received messages_read event:', data);
             this.messagesReadCallbacks.forEach(callback => callback(data));
         });
 
         this.socket.on('user_status', (data) => {
-            console.log('Received user_status event:', data);
+            // console.log('Received user_status event:', data);
             this.userStatusCallbacks.forEach(callback => callback(data));
         });
     }
 
     disconnect() {
         if (this.socket) {
-            console.log('Disconnecting socket');
+            // console.log('Disconnecting socket');
             this.socket.disconnect();
             this.socket = null;
             this.connected = false;
@@ -85,7 +85,7 @@ class SocketService {
         }
 
         if (conversationId && email) {
-            console.log(`Joining conversation: ${conversationId} as ${email}`);
+            // console.log(`Joining conversation: ${conversationId} as ${email}`);
             this.socket.emit('join_conversation', {
                 conversation_id: conversationId,
                 email
@@ -100,7 +100,7 @@ class SocketService {
         }
 
         if (conversationId) {
-            console.log(`Leaving conversation: ${conversationId}`);
+            // console.log(`Leaving conversation: ${conversationId}`);
             this.socket.emit('leave_conversation', {
                 conversation_id: conversationId
             });
@@ -118,7 +118,7 @@ class SocketService {
             return null;
         }
 
-        console.log(`Sending message to conversation ${conversationId} from ${email}`);
+        // console.log(`Sending message to conversation ${conversationId} from ${email}`);
         const messageData = {
             conversation_id: conversationId,
             email,
@@ -143,7 +143,7 @@ class SocketService {
     onNewMessage(callback) {
         if (typeof callback === 'function') {
             this.messageCallbacks.push(callback);
-            console.log('Added new message callback');
+            // console.log('Added new message callback');
         }
     }
 

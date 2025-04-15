@@ -72,7 +72,7 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
 
     // Mentees chart data
     const menteesChartData = useMemo(() => {
-        console.log("Preparing mentees chart data with:", menteesData);
+        // console.log("Preparing mentees chart data with:", menteesData);
 
         // Filter out alumni with no mentees and ensure mentees field exists
         const activeAlumni = menteesData
@@ -80,7 +80,7 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
             .sort((a, b) => b.mentees.length - a.mentees.length)
             .slice(0, 10); // Top 10 mentors
 
-        console.log("Active alumni for chart:", activeAlumni.length);
+        // console.log("Active alumni for chart:", activeAlumni.length);
 
         if (activeAlumni.length === 0) {
             // Return placeholder data if no active alumni
@@ -153,7 +153,7 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
 
     // Posts chart data
     const postsChartData = useMemo(() => {
-        console.log("Preparing posts chart data with:", postsData);
+        // console.log("Preparing posts chart data with:", postsData);
 
         // Filter and sort by post count
         const activePosters = postsData
@@ -161,7 +161,7 @@ const AlumniCharts = ({ alumniData, menteesData, postsData }) => {
             .sort((a, b) => b.posts.length - a.posts.length)
             .slice(0, 8); // Top 8 contributors
 
-        console.log("Active posters for chart:", activePosters.length);
+        // console.log("Active posters for chart:", activePosters.length);
 
         if (activePosters.length === 0) {
             // Return placeholder data if no active posters

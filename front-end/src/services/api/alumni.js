@@ -7,7 +7,7 @@ export const getAlumniWillingness = async (willingnessFilter, authToken) => {
         const response = await axios.get(url, {
             headers: { Authorization: `Bearer ${authToken}` }
         });
-        console.log("Alumni willingness response:", response.data);
+        // console.log("Alumni willingness response:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error fetching alumni willingness:", error);
@@ -22,13 +22,13 @@ export const getAlumniMentees = async (alumnusId, authToken) => {
         }
 
         const url = `/alumni/${alumnusId}/mentees`;
-        console.log("Fetching mentees from URL:", url);
+        // console.log("Fetching mentees from URL:", url);
 
         const response = await axios.get(url, {
             headers: { Authorization: `Bearer ${authToken}` }
         });
 
-        console.log("Alumni mentees response:", response.data);
+        // console.log("Alumni mentees response:", response.data);
         return response.data;
     } catch (error) {
         console.error(`Error fetching mentees for ${alumnusId}:`, error);
@@ -43,13 +43,13 @@ export const getAlumniPosts = async (alumnusId, authToken) => {
         }
 
         const url = `/alumni/${alumnusId}/posts`;
-        console.log("Fetching posts from URL:", url);
+        // console.log("Fetching posts from URL:", url);
 
         const response = await axios.get(url, {
             headers: { Authorization: `Bearer ${authToken}` }
         });
 
-        console.log("Alumni posts response:", response.data);
+        // console.log("Alumni posts response:", response.data);
         return response.data;
     } catch (error) {
         console.error(`Error fetching posts for ${alumnusId}:`, error);

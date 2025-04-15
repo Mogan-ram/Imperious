@@ -23,7 +23,7 @@ const AlumniMentorship = () => {
         setLoading(true);
         try {
             const response = await mentorshipService.getRequests();
-            console.log('Mentorship requests response:', response);
+            // console.log('Mentorship requests response:', response);
 
             // Ensure we have an array of requests
             const requestsData = Array.isArray(response) ? response :

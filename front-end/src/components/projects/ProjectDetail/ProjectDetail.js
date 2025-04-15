@@ -27,7 +27,7 @@ const ProjectDetail = () => {
             setLoading(true);
             try {
                 const response = await projectService.getProjectById(id);
-                console.log("Project data:", response);
+                // console.log("Project data:", response);
 
                 // Handle different response formats
                 // Case 1: If response is the project object directly

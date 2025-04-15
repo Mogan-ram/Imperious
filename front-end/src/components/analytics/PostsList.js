@@ -23,7 +23,7 @@ const PostsList = ({ alumnusId }) => {
         setLoading(true);
         setError(null);
         try {
-            console.log("Fetching posts for:", alumnusId);
+            // console.log("Fetching posts for:", alumnusId);
 
             // First get the alumni data to display the alumnus name
             const alumniList = await alumniApi.getAlumniWillingness("", authToken);
@@ -32,7 +32,7 @@ const PostsList = ({ alumnusId }) => {
 
             // Get posts data
             const postsData = await alumniApi.getAlumniPosts(alumnusId, authToken);
-            console.log("Received posts data:", postsData);
+            // console.log("Received posts data:", postsData);
 
             // Ensure we have an array of posts
             if (Array.isArray(postsData)) {

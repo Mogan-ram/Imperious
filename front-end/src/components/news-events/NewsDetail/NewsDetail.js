@@ -152,8 +152,8 @@ const NewsDetail = () => {
                 text: article.description.substring(0, 100) + '...',
                 url: window.location.href,
             })
-                .then(() => console.log('Shared successfully'))
-                .catch((error) => console.log('Error sharing:', error));
+            // .then(() => console.log('Shared successfully'))
+            // .catch((error) => console.log('Error sharing:', error));
         } else {
             // Fallback for browsers that don't support navigator.share
             const tempInput = document.createElement('input');
