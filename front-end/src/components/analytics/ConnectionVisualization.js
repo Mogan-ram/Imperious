@@ -42,7 +42,7 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
         if (data.mentees && Array.isArray(data.mentees)) {
             data.mentees.forEach(mentee => {
                 if (!mentee._id) {
-                    console.log("Mentee missing ID:", mentee);
+                    // console.log("Mentee missing ID:", mentee);
                     return;
                 }
 
@@ -218,7 +218,7 @@ const ConnectionVisualization = ({ alumniData, menteesData }) => {
 
         const { nodes, links } = processedData;
 
-        console.log(`Visualization data prepared: ${nodes.length} nodes, ${links.length} links`);
+        // console.log(`Visualization data prepared: ${nodes.length} nodes, ${links.length} links`);
 
         if (nodes.length === 0) {
             d3.select(svgRef.current)

@@ -25,18 +25,18 @@ const MyMentees = () => {
         setError(null);
 
         try {
-            console.log("Fetching mentees data from primary endpoint");
+            // console.log("Fetching mentees data from primary endpoint");
             const response = await mentorshipService.getMentees();
-            console.log("Mentees API response:", response);
+            // console.log("Mentees API response:", response);
 
             // Check if we have project_groups in the response
             if (response && response.project_groups && Array.isArray(response.project_groups)) {
-                console.log("Found project_groups data:", response.project_groups);
+                // console.log("Found project_groups data:", response.project_groups);
                 setMenteesData(response.project_groups);
             }
             // Check if we have just an array
             else if (Array.isArray(response) && response.length > 0) {
-                console.log("Found array data:", response);
+                // console.log("Found array data:", response);
                 setMenteesData(response);
             }
             // Try to find mentees data in another format
@@ -68,10 +68,10 @@ const MyMentees = () => {
                 });
 
                 const transformedData = Object.values(projectMap);
-                console.log("Created project_groups from mentees:", transformedData);
+                // console.log("Created project_groups from mentees:", transformedData);
                 setMenteesData(transformedData);
             } else {
-                console.log("No mentees data found in the expected format:", response);
+                // console.log("No mentees data found in the expected format:", response);
 
                 // Fallback logic (your existing fallback code)
                 if (!triedFallback.current) {

@@ -47,7 +47,7 @@ const ProjectCollaborationNetwork = () => {
 
             // Use the analytics service to get all projects
             const allProjects = await analyticsService.getAllProjects();
-            console.log('Fetched projects for network:', allProjects?.length || 0);
+            // console.log('Fetched projects for network:', allProjects?.length || 0);
 
             if (Array.isArray(allProjects) && allProjects.length > 0) {
                 setProjects(allProjects);
@@ -101,7 +101,7 @@ const ProjectCollaborationNetwork = () => {
             return;
         }
 
-        console.log('Generating network data from projects:', projects.length);
+        // console.log('Generating network data from projects:', projects.length);
 
         // Apply filters
         let filteredProjects = [...projects];
@@ -291,7 +291,7 @@ const ProjectCollaborationNetwork = () => {
             }
         });
 
-        console.log(`Network data generated: ${nodes.length} nodes, ${links.length} links`);
+        // console.log(`Network data generated: ${nodes.length} nodes, ${links.length} links`);
         setNetworkData({ nodes, links });
     }, [projects, departmentFilter, techFilter]);
 

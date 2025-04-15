@@ -216,8 +216,8 @@ const Profile = () => {
         );
 
 
-        console.log("Selected avatar ID:", avatarId);
-        console.log("Generated avatar URL:", avatarUrl);
+        // console.log("Selected avatar ID:", avatarId);
+        // console.log("Generated avatar URL:", avatarUrl);
         // Update profile with new avatar URL
         updateProfileAvatar(avatarUrl);
 
@@ -252,7 +252,7 @@ const Profile = () => {
                 }
 
                 setProfileData(userData);
-                console.log("Profile data: ", userData);
+                // console.log("Profile data: ", userData);
 
                 // Initialize other data in parallel based on user role
                 const promises = [];

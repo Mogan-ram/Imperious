@@ -136,13 +136,13 @@ const MessagingPage = () => {
 
     // In MessagingPage.js - handleNewMessage function
     const handleNewMessage = (message) => {
-        console.log("Processing new message:", message);
-        console.log("Active conversation:", activeConversation?._id);
-        console.log("Current user:", user);
+        // console.log("Processing new message:", message);
+        // console.log("Active conversation:", activeConversation?._id);
+        // console.log("Current user:", user);
 
         // Check if the message belongs to the active conversation
         if (activeConversation && message.conversation_id === activeConversation._id) {
-            console.log("Adding message to current conversation");
+            // console.log("Adding message to current conversation");
 
             // Remove any temporary messages and add the real message
             setMessages(prev => {
@@ -154,7 +154,7 @@ const MessagingPage = () => {
                 return [...filtered, message];
             });
         } else {
-            console.log("Message not added to current view - conversation mismatch");
+            // console.log("Message not added to current view - conversation mismatch");
         }
 
 

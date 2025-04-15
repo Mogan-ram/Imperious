@@ -20,10 +20,10 @@ export const newsEventsService = {
                     limit: 10
                 }
             });
-            console.log('Service response:', response);
+            // console.log('Service response:', response);
             return response;
         } catch (error) {
-            console.error('Service error:', error);
+            // console.error('Service error:', error);
             throw error;
         }
     },

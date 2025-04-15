@@ -509,7 +509,7 @@ const AlumniMentorship = ({ data }) => {
                 <AlumniList
                     departmentFilter={departmentFilter}
                     batchFilter={batchFilter}
-                    onAlumnusSelect={(email) => console.log("Alumni selected:", email)}
+                // onAlumnusSelect={(email) => console.log("Alumni selected:", email)}
                 />
             )}
 

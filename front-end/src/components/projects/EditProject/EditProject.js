@@ -24,7 +24,7 @@ const EditProject = () => {
             setLoading(true);
             try {
                 const response = await projectService.getProjectById(id);
-                console.log(response.data);
+                // console.log(response.data);
                 const projectData = response.data || {};
                 if (!response.data) {
                     throw new Error('No project data received');
@@ -38,7 +38,7 @@ const EditProject = () => {
                     githubLink: projectData.githubLink || projectData.github_link || '',
                     modules: projectData.modules || []
                 });
-                console.log('project state after fetching:', projectData);
+                // console.log('project state after fetching:', projectData);
             } catch (error) {
                 console.error('Failed to load project:', error);
                 toast.error('Failed to load project');

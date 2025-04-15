@@ -71,7 +71,7 @@ const StudentAnalytics = ({ analyticsData }) => {
         try {
             // Use the analytics service to get all projects
             const allProjects = await analyticsService.getAllProjects();
-            console.log('Fetched projects:', allProjects);
+            // console.log('Fetched projects:', allProjects);
 
             if (Array.isArray(allProjects)) {
                 // Filter projects based on selected filters

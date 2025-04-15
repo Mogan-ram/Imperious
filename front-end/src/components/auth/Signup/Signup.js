@@ -115,7 +115,7 @@ const Signup = () => {
                 )
             };
 
-            console.log('Submitting signup data:', signupData);  // Debug log
+            // console.log('Submitting signup data:', signupData);  // Debug log
             await signup(signupData);
             navigate('/signin');
 

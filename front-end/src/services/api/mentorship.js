@@ -15,7 +15,7 @@ export const mentorshipService = {
     getRequests: async () => {
         try {
             const response = await axios.get('/mentorship/requests');
-            console.log('Mentorship requests API response:', response.data);
+            // console.log('Mentorship requests API response:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error getting mentorship requests:', error);
@@ -27,7 +27,7 @@ export const mentorshipService = {
     getMentors: async () => {
         try {
             const response = await axios.get('/mentorship/mentors');
-            console.log('Mentors API response:', response.data);
+            // console.log('Mentors API response:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error getting mentors:', error);

@@ -33,7 +33,7 @@ const MenteesList = ({ alumnusId }) => {
         setLoading(true);
         setError(null);
         try {
-            console.log("Fetching mentees for:", alumnusId);
+            // console.log("Fetching mentees for:", alumnusId);
 
             // First get the alumni data to display the alumnus name
             const alumniList = await alumniApi.getAlumniWillingness("", authToken);
@@ -42,7 +42,7 @@ const MenteesList = ({ alumnusId }) => {
 
             // Get mentees data
             const menteesData = await alumniApi.getAlumniMentees(alumnusId, authToken);
-            console.log("Received mentees data:", menteesData);
+            // console.log("Received mentees data:", menteesData);
 
             // Check if menteesData is an array
             if (Array.isArray(menteesData)) {

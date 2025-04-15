@@ -4,9 +4,9 @@ import axios from '../axios';
 export const collaborationService = {
     exploreProjects: async (filters) => {
         try {
-            console.log('Sending filters to backend:', filters);
+
             const response = await axios.get('/collaborations/explore', { params: filters });
-            console.log('Explore API raw response:', response);
+
             return response.data;
         } catch (error) {
             console.error('Error exploring projects:', error);
@@ -28,7 +28,7 @@ export const collaborationService = {
     getRequests: async () => {
         try {
             const response = await axios.get('/collaborations/requests');
-            console.log('Requests API raw response:', response);
+            // console.log('Requests API raw response:', response);
             return response.data;
         } catch (error) {
             console.error('Error getting requests:', error);
@@ -49,23 +49,23 @@ export const collaborationService = {
 
     getCollaboratedProjects: async () => {
         try {
-            console.log('Fetching collaborated projects...');
+            // console.log('Fetching collaborated projects...');
             const response = await axios.get('/collaborations/collaborated');
-            console.log('Collaborated API raw response:', response);
+            // console.log('Collaborated API raw response:', response);
 
             // Log the structure of the response to debug
             if (response.data) {
-                console.log('Response.data type:', typeof response.data);
-                console.log('Is array?', Array.isArray(response.data));
+                // console.log('Response.data type:', typeof response.data);
+                // console.log('Is array?', Array.isArray(response.data));
                 if (typeof response.data === 'object') {
-                    console.log('Keys:', Object.keys(response.data));
+                    // console.log('Keys:', Object.keys(response.data));
                 }
             }
 
             return response.data;
         } catch (error) {
-            console.error('Error getting collaborated projects:', error);
-            console.error('Error details:', error.response ? error.response.data : 'No response data');
+            // console.error('Error getting collaborated projects:', error);
+            // console.error('Error details:', error.response ? error.response.data : 'No response data');
             // Return empty array instead of throwing
             return [];
         }
@@ -84,7 +84,7 @@ export const collaborationService = {
     getOutgoingRequests: async () => {
         try {
             const response = await axios.get('/collaborations/outgoing');
-            console.log('Outgoing API raw response:', response);
+            // console.log('Outgoing API raw response:', response);
             return response.data;
         } catch (error) {
             console.error('Error getting outgoing requests:', error);
