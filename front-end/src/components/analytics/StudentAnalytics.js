@@ -1,11 +1,11 @@
 // src/components/analytics/StudentAnalytics.js
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Form, Table, Badge, Pagination, Alert, Spinner, Button } from 'react-bootstrap';
+import { Card, Row, Col, Form, Table, Badge, Alert, Spinner, Button } from 'react-bootstrap';
 import {
     FaChartPie, FaNetworkWired, FaLaptopCode, FaUsers,
     FaHandshake, FaChartLine, FaFilter, FaExclamationTriangle, FaLock
 } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+// import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
 import { analyticsService } from '../../services/api/analytics';
 import ProjectChart from './ProjectChart';

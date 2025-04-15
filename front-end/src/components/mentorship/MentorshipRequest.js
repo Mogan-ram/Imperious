@@ -3,7 +3,6 @@ import { Container, Card, Row, Col, Form, Button, ListGroup, Badge, Tabs, Tab } 
 import { useNavigate } from 'react-router-dom';
 import { projectService } from '../../services/api/projects';
 import { mentorshipService } from '../../services/api/mentorship';
-import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { FaEnvelope } from 'react-icons/fa';
@@ -18,7 +17,7 @@ const MentorshipRequest = () => {
     const [mentors, setMentors] = useState([]);
     const [activeTab, setActiveTab] = useState('request');
     const navigate = useNavigate();
-    const { user } = useAuth();
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -80,10 +79,10 @@ const MentorshipRequest = () => {
 
         setSubmitting(true);
         try {
-            const response = await mentorshipService.createRequest({
-                project_id: selectedProject,
-                message: message.trim() || 'I would like to request mentorship for this project.'
-            });
+            // const response = await mentorshipService.createRequest({
+            //     project_id: selectedProject,
+            //     message: message.trim() || 'I would like to request mentorship for this project.'
+            // });
 
             toast.success('Mentorship request submitted successfully');
 

@@ -12,7 +12,7 @@ import StatCard from './StatCard';
 import {
     FaGraduationCap, FaChalkboardTeacher, FaUsers, FaChartLine,
     FaNetworkWired, FaAddressBook, FaUserGraduate, FaChartPie, FaLaptopCode,
-    FaFilter, FaRss, FaNewspaper, FaUserCircle, FaEnvelope
+    FaFilter, FaRss, FaUserCircle, FaEnvelope
 } from 'react-icons/fa';
 import { Bar, Pie } from 'react-chartjs-2';
 import { useNavigate } from 'react-router-dom';

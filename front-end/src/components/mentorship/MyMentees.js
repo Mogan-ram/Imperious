@@ -5,14 +5,14 @@ import { mentorshipService } from '../../services/api/mentorship';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { FaEnvelope, FaUserCircle, FaEye } from 'react-icons/fa';
-import { useAuth } from '../../contexts/AuthContext';
+// import { useAuth } from '../../contexts/AuthContext';
 
 const MyMentees = () => {
     const [loading, setLoading] = useState(true);
     const [menteesData, setMenteesData] = useState([]);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
-    const { user } = useAuth();
+    // const { user } = useAuth();
 
     // Use a ref to track if we've tried the fallback to avoid loops
     const triedFallback = useRef(false);
@@ -86,7 +86,7 @@ const MyMentees = () => {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, []);
 
     // Load data when component mounts
     useEffect(() => {

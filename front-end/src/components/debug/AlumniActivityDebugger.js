@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, Button, Accordion, Alert } from 'react-bootstrap';
 import axios from '../../services/api/axios';
 

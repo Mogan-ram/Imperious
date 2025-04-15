@@ -7,8 +7,8 @@ import { Card, Button, Badge, Spinner, Nav, Form, InputGroup, Alert } from 'reac
 import axios from '../../../services/axios';
 import { toast } from 'react-toastify';
 import {
-    FaHome, FaUser, FaBell, FaEnvelope, FaBriefcase, FaUsers,
-    FaCalendarAlt, FaGraduationCap, FaSearch, FaBookmark,
+    FaHome, FaUser, FaEnvelope, FaBriefcase,
+    FaCalendarAlt, FaGraduationCap, FaSearch,
     FaRss, FaChartBar, FaCode, FaLightbulb
 } from 'react-icons/fa';
 import './FeedList.css';

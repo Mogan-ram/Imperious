@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Button, Collapse, InputGroup, Form } from 'react-bootstrap';
-import { FaChevronDown, FaChevronUp, FaPaperPlane, FaExpand, FaPaperclip, FaSmile } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaPaperPlane, FaExpand, } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import messagingService from '../../services/api/messaging';
 import socketService from '../../services/socketService';

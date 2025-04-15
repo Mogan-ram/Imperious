@@ -57,15 +57,15 @@ const Feed = () => {
                     <div className="position-fixed">
                         <div className="p-3">
                             <div className="d-flex flex-column gap-3">
-                                <a href="#" className="text-decoration-none text-dark fw-bold">
+                                <button className="btn btn-link text-decoration-none text-dark fw-bold">
                                     <i className="bi bi-house-door me-2"></i> Home
-                                </a>
-                                <a href="#" className="text-decoration-none text-dark">
+                                </button>
+                                <button className="btn btn-link text-decoration-none text-dark p-0">
                                     <i className="bi bi-person me-2"></i> Profile
-                                </a>
-                                <a href="#" className="text-decoration-none text-dark">
+                                </button>
+                                <button className="btn btn-link text-decoration-none text-dark p-0">
                                     <i className="bi bi-bell me-2"></i> Notifications
-                                </a>
+                                </button>
                             </div>
                         </div>
                     </div>

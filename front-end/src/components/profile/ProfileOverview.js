@@ -116,9 +116,6 @@ const BioCard = ({ bio }) => (
 // Role-Specific Section for Alumni
 const AlumniOverviewCard = ({ jobProfile, mentorshipData, onJobProfileClick }) => {
     // Check if mentorshipData is an object with mentees or project_groups property
-    const mentees = Array.isArray(mentorshipData)
-        ? mentorshipData
-        : (mentorshipData?.mentees || mentorshipData?.project_groups || []);
 
     // Get the count of mentees
     const menteesCount = Array.isArray(mentorshipData)

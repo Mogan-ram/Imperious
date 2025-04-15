@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Container, Card, Row, Col, Badge, Button, Form, InputGroup, Dropdown, Pagination, Alert } from 'react-bootstrap';
+import { Container, Card, Row, Col, Badge, Button, Form, InputGroup, Dropdown, Pagination } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaTrash, FaGithub, FaPlus, FaSearch, FaFilter, FaSort, FaEye, FaCode, FaUsers } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaGithub, FaPlus, FaSearch, FaFilter, FaSort, FaEye, FaUsers } from 'react-icons/fa';
 import { projectService } from '../../../services/api/projects';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import { toast } from 'react-toastify';

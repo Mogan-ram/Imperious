@@ -128,7 +128,7 @@ const JobForm = () => {
                 await jobService.updateJob(id, jobData);
                 setSuccess('Job updated successfully');
             } else {
-                const response = await jobService.createJob(jobData);
+                // const response = await jobService.createJob(jobData);
                 setSuccess('Job created successfully');
 
                 // Reset form after successful creation

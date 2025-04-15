@@ -29,10 +29,10 @@ const JobList = () => {
     const [showFilters, setShowFilters] = useState(false);
 
     // Format date function
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    };
+    // const formatDate = (dateString) => {
+    //     const date = new Date(dateString);
+    //     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    // };
 
     // Calculate days ago
     const getDaysAgo = (dateString) => {
@@ -53,7 +53,7 @@ const JobList = () => {
     };
 
     // Load jobs from API
-    const fetchJobs = async () => {
+    const fetchJobs = React.useCallback(async () => {
         setLoading(true);
         try {
             const result = await jobService.getAllJobs(
@@ -73,10 +73,10 @@ const JobList = () => {
             setError('Failed to load jobs. Please try again later.');
             setLoading(false);
         }
-    };
+    }, [currentPage, searchTerm, locationFilter, jobTypeFilter, sortBy, sortOrder]);
 
     // Update URL with current filters
-    const updateUrlParams = () => {
+    const updateUrlParams = React.useCallback(() => {
         const params = new URLSearchParams();
         if (currentPage > 1) params.set('page', currentPage);
         if (searchTerm) params.set('search', searchTerm);
@@ -89,7 +89,7 @@ const JobList = () => {
             pathname: location.pathname,
             search: params.toString()
         }, { replace: true });
-    };
+    }, [currentPage, searchTerm, locationFilter, jobTypeFilter, sortBy, sortOrder, navigate, location.pathname]);
 
     // Handle search
     const handleSearch = (e) => {
@@ -122,7 +122,7 @@ const JobList = () => {
     useEffect(() => {
         fetchJobs();
         updateUrlParams();
-    }, [currentPage, jobTypeFilter, sortBy, sortOrder]);
+    }, [currentPage, jobTypeFilter, sortBy, sortOrder, fetchJobs, updateUrlParams]);
 
     return (
         <><Container className="job-list-container py-5">

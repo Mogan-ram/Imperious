@@ -43,10 +43,10 @@ const NewsEventForm = () => {
             setIsEditing(true);
             fetchNewsEvent();
         }
-    }, [location.search, id]);
+    }, [location.search, id, fetchNewsEvent]);
 
     // Fetch news/event data for editing
-    const fetchNewsEvent = async () => {
+    const fetchNewsEvent = React.useCallback(async () => {
         try {
             setIsLoading(true);
             const response = await newsEventsService.getById(id);
@@ -71,7 +71,7 @@ const NewsEventForm = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [id]);
 
     // Check if user has permission to create news/events
     if (!user || !['staff', 'alumni'].includes(user.role?.toLowerCase())) {

@@ -24,7 +24,7 @@ import { toast } from 'react-toastify';
 import * as alumniApi from '../../services/api/alumni';
 import messagingService from '../../services/api/messaging';
 import { useAuth } from '../../contexts/AuthContext';
-import StatCard from './StatCard';
+
 
 ChartJS.register(
     CategoryScale,
@@ -275,7 +275,7 @@ const UserEngagementChart = ({ data }) => {
     });
 
     // Combine unique departments
-    const allDepts = [...new Set([...deptLabels, ...data.alumni_departments.map(item => String(item._id || ''))])];
+    // const allDepts = [...new Set([...deptLabels, ...data.alumni_departments.map(item => String(item._id || ''))])];
 
     const deptDistributionData = {
         labels: deptLabels,
@@ -369,9 +369,9 @@ const UserEngagementChart = ({ data }) => {
     const batchTotals = batchEntries.map(([_, data]) => data.total);
 
     // Store for tooltip data
-    const batchStudentCounts = Object.fromEntries(
-        batchEntries.map(([year, data]) => [year, data.studentCount])
-    );
+    // const batchStudentCounts = Object.fromEntries(
+    //     batchEntries.map(([year, data]) => [year, data.studentCount])
+    // );
     const batchAlumniCounts = Object.fromEntries(
         batchEntries.map(([year, data]) => [year, data.alumniCount])
     );
@@ -447,10 +447,10 @@ const UserEngagementChart = ({ data }) => {
         : [];
 
     // Extract unique batches for filter
-    const batches = [...new Set([
-        ...data.student_batches.map(item => String(item._id || '')),
-        ...data.alumni_batches.map(item => String(item._id || ''))
-    ])].filter(Boolean).sort();
+    // const batches = [...new Set([
+    //     ...data.student_batches.map(item => String(item._id || '')),
+    //     ...data.alumni_batches.map(item => String(item._id || ''))
+    // ])].filter(Boolean).sort();
 
     // Render appropriate filters based on active tab
     const renderFilters = () => {

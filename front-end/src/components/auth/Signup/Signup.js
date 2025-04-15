@@ -36,10 +36,10 @@ const Signup = () => {
     };
 
 
-    const handleWillingnessChange = (e) => {
-        const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value)
-        setWillingness(selectedOptions)
-    }
+    // const handleWillingnessChange = (e) => {
+    //     const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value)
+    //     setWillingness(selectedOptions)
+    // }
 
     const handleCheckboxChange = (e) => {
         const { value, checked } = e.target;

@@ -18,7 +18,7 @@ import socketService from './services/socketService';
 
 
 // Replace direct imports with lazy imports for larger components
-const Profile = React.lazy(() => import('./components/profile/Profile'));
+// const Profile = React.lazy(() => import('./components/profile/Profile'));
 const FeedList = React.lazy(() => import('./components/feed/FeedList/FeedList'));
 const NewsList = React.lazy(() => import('./components/news-events/NewsList/NewsList'));
 const EventList = React.lazy(() => import('./components/news-events/EventList/EventList'));

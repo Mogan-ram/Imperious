@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Form, Button, Card, Row, Col, ProgressBar, Alert, Badge, ListGroup, InputGroup, Spinner } from 'react-bootstrap';
+import { Container, Form, Button, Card, Row, Col, Alert, Badge, ListGroup, InputGroup, Spinner } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FaArrowLeft, FaArrowRight, FaCheck, FaPlus, FaTimes, FaGithub, FaCode, FaSave } from 'react-icons/fa';
+import { FaArrowLeft, FaArrowRight, FaCheck, FaPlus, FaTimes, FaGithub } from 'react-icons/fa';
 import { projectService } from '../../../services/api/projects';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import { toast } from 'react-toastify';
